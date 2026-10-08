@@ -9,22 +9,24 @@ const tabs = [
 ]
 // 등록·수정 단계 화면은 자체 상단바/하단버튼을 쓰므로 공통 틀을 숨긴다
 const isFlow = computed(() => !!route.meta.flow)
-const isDetail = computed(() => route.path.startsWith('/gears/'))
+// GitHub Pages는 /settings/gears 를 /settings/gears/ 로 옮기므로 끝의 / 를 떼고 비교한다
+const path = computed(() => route.path.replace(/(.)\/+$/, '$1'))
+const isDetail = computed(() => path.value.startsWith('/gears/'))
 // 탭 첫 화면이 아니면 뒤로가기 버튼
 const subTitles: Record<string, string> = { '/settings/gears': '보유 변환기어', '/settings/backup': '백업 · 복원' }
-const showBack = computed(() => isDetail.value || route.path in subTitles)
+const showBack = computed(() => isDetail.value || path.value in subTitles)
 // 상세 화면은 주소의 기어 제원(M10 · 30T)을 제목으로, 나머지는 탭 이름
 const title = computed(() => {
   if (isDetail.value) {
     const gear = gears.value.list.find(g => g.id === route.params.id)
     return gear ? specTitle(gear.spec) : ''
   }
-  return subTitles[route.path] ?? tabs.find(t => t.match(route.path))?.label ?? '기어 계산기'
+  return subTitles[path.value] ?? tabs.find(t => t.match(path.value))?.label ?? '기어 계산기'
 })
 
 function back() {
   if (window.history.state?.back) router.back()
-  else navigateTo(route.path.startsWith('/settings') ? '/settings' : '/')
+  else navigateTo(path.value.startsWith('/settings') ? '/settings' : '/')
 }
 </script>
 
@@ -53,7 +55,7 @@ function back() {
             :key="tab.to"
             :to="tab.to"
             class="flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-medium"
-            :class="tab.match(route.path) ? 'text-highlighted' : 'text-dimmed'"
+            :class="tab.match(path) ? 'text-highlighted' : 'text-dimmed'"
           >
             <UIcon :name="tab.icon" class="size-6" />
             {{ tab.label }}
