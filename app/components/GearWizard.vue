@@ -129,23 +129,48 @@ function back() {
   else router.back()
 }
 
+// 등록·수정을 시작한 브라우저 기록 위치와 그 앞 화면. 끝낼 때 단계 기록을 정확히 그만큼 걷어내는 데 쓴다.
+// (vue-router가 history.state 에 position 과 back 을 적어 둔다. 새로고침해도 남도록 sessionStorage 에 둔다)
+const entryKey = `gear-calc:wizard-entry:${props.mode}`
+onMounted(() => {
+  if (route.query.step) return
+  try {
+    sessionStorage.setItem(entryKey, JSON.stringify({ position: window.history.state?.position, back: window.history.state?.back ?? null }))
+  }
+  catch {}
+})
+
 /** 쌓인 단계 기록을 걷어내고 목적지로 간다 (뒤로가기로 단계 화면이 다시 나오지 않게) */
 async function leave(to: string) {
-  const depth = stepIndex.value + 1
-  await new Promise<void>((resolve) => {
-    const stop = watch(() => route.fullPath, () => {
-      stop()
-      resolve()
+  let entry: { position?: number, back?: string | null } = {}
+  try {
+    entry = JSON.parse(sessionStorage.getItem(entryKey) ?? '{}')
+    sessionStorage.removeItem(entryKey)
+  }
+  catch {}
+  const position = Number(window.history.state?.position)
+  // 앞 화면(목록·상세)이 앱 안에 있을 때만 되돌린다. 주소로 바로 들어왔으면 back 이 없다
+  const delta = entry.back && Number.isFinite(entry.position) && position >= entry.position!
+    ? position - entry.position! + 1
+    : 0
+
+  if (delta > 0) {
+    // 되돌리기가 끝날 때까지 기다린다. 이 화면은 그사이 사라지므로 화면이 아닌 라우터 전체의 이동 완료 신호를 쓴다
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        off()
+        clearTimeout(timer)
+        resolve()
+      }
+      const off = router.afterEach(done)
+      const timer = setTimeout(done, 3000) // 이동이 아예 일어나지 않는 예외 상황용
+      router.go(-delta)
     })
-    // 기록이 없으면(주소로 바로 들어온 경우) 이동이 안 일어나므로 잠시 뒤 그냥 진행
-    setTimeout(() => {
-      stop()
-      resolve()
-    }, 400)
-    router.go(-depth)
-  })
-  // 진입 화면(목록 또는 상세)으로 돌아왔으니, 목적지가 다르면 그 위에 쌓는다
-  if (route.fullPath !== to) await router.push(to)
+  }
+  // 진입 화면으로 돌아왔으니 목적지가 다르면 그 위에 쌓고, 진입 화면이 없으면 지금 기록을 바꾼다
+  // (GitHub Pages는 주소 끝에 / 를 붙이기도 해서 떼고 비교)
+  const same = (x: string) => x.replace(/(.)\/+(\?|$)/, '$1$2')
+  if (same(router.currentRoute.value.fullPath) !== same(to)) await (delta > 0 ? router.push(to) : router.replace(to))
 }
 
 const unitItems = [

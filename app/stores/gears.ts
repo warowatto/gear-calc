@@ -8,6 +8,7 @@ export const useGearsStore = defineStore('gears', () => {
   const byId = (id: string) => list.value.find(g => g.id === id)
 
   function add(gear: GearRecord) {
+    if (byId(gear.id)) return // 같은 기어를 두 번 넣지 않는다
     const now = Date.now()
     list.value.push({ ...gear, createdAt: now, updatedAt: now })
   }
