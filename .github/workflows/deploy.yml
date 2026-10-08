@@ -1,0 +1,61 @@
+# main 에 push 하면 테스트 → 정적 빌드 → GitHub Pages 배포
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포가 겹치면 마지막 것만 남긴다
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # package.json 의 packageManager(pnpm@11.7.0) 버전을 쓴다
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm test
+
+      # 저장소 이름이 아이디.github.io 면 루트(/), 아니면 /저장소이름/ 아래에서 열린다
+      - name: Set base URL
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          if [[ "$REPO" == *.github.io ]]; then
+            echo "NUXT_APP_BASE_URL=/" >> "$GITHUB_ENV"
+          else
+            echo "NUXT_APP_BASE_URL=/$REPO/" >> "$GITHUB_ENV"
+          fi
+
+      - run: pnpm generate
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: .output/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/*
+ * 숫자 전용 글꼴: 숫자와 부호(+ − ± %)에만 JetBrains Mono를 쓴다 (unicode-range).
+ * 마침표는 문장에도 쓰여 제외한다. 1/7, 3/8, 6/9/0 구분이 뚜렷하고 폭이 일정해 치수가 줄 맞춰 보인다. 한글·영문은 Pretendard 그대로.
+ */
+@font-face {
+  font-family: "Gear Numbers";
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0030-0039, U+002B, U+002D, U+2212, U+00B1, U+0025;
+}
+
+@theme {
+  --font-sans: "Gear Numbers", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+:root {
+  --ui-bg-muted: #f2f4f6;
+}
+
+body {
+  background: #f2f4f6;
+  letter-spacing: -0.01em;
+}
+
+/* iOS 사파리는 16px 미만 입력칸에 포커스하면 화면을 확대한다 */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
