@@ -13,15 +13,21 @@ const isFlow = computed(() => !!route.meta.flow)
 const path = computed(() => route.path.replace(/(.)\/+$/, '$1'))
 const isDetail = computed(() => path.value.startsWith('/gears/'))
 // 탭 첫 화면이 아니면 뒤로가기 버튼
-const subTitles: Record<string, string> = { '/settings/gears': '보유 변환기어', '/settings/backup': '백업 · 복원' }
-const showBack = computed(() => isDetail.value || path.value in subTitles)
+const subTitles: Record<string, string> = {
+  '/settings/gears': '보유 변환기어',
+  '/settings/backup': '백업 · 복원',
+  '/settings/machines/new': '기계 등록',
+}
+const subTitle = computed(() =>
+  subTitles[path.value] ?? (path.value.startsWith('/settings/machines/') ? '기계 수정' : undefined))
+const showBack = computed(() => isDetail.value || path.value.startsWith('/settings/'))
 // 상세 화면은 주소의 기어 제원(M10 · 30T)을 제목으로, 나머지는 탭 이름
 const title = computed(() => {
   if (isDetail.value) {
     const gear = gears.value.list.find(g => g.id === route.params.id)
     return gear ? specTitle(gear.spec) : ''
   }
-  return subTitles[path.value] ?? tabs.find(t => t.match(path.value))?.label ?? '기어 계산기'
+  return subTitle.value ?? tabs.find(t => t.match(path.value))?.label ?? '기어 계산기'
 })
 
 function back() {

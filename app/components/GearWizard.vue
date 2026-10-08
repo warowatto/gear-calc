@@ -69,8 +69,12 @@ watch(showTolerance, (on) => {
 })
 
 // ── 기계 ──
-const hasMachines = computed(() => workshop.value.machines.length > 0)
-if (!machine.value && workshop.value.machines[0]) gear.value.hob.machineId = workshop.value.machines[0].id
+// 분할 상수까지 넣은 기계만 고를 수 있다
+const hasMachines = computed(() => workshop.value.machines.some(isMachineReady))
+if (!isMachineReady(machine.value)) {
+  const first = workshop.value.machines.find(isMachineReady)
+  if (first) gear.value.hob.machineId = first.id
+}
 const gearsOpen = ref(false)
 
 // ── 단계 ──
@@ -98,9 +102,9 @@ const steps = computed<Step[]>(() => {
         && isNumber(s.profileShift) && Math.abs(s.profileShift) < 3,
     },
     { key: 'span', title: '걸치기 잇수를 확인해주세요', description: '추천 잇수로 계산했어요. 다른 잇수로 잴 거면 골라주세요.', valid: !!span.value && (!customOpen.value || customValid.value) },
-    { key: 'machine', title: '어떤 기계로 가공하나요?', valid: !hasMachines.value || (!!machine.value && isPositive(gear.value.hob.starts)), cta: hasMachines.value ? undefined : '건너뛰기' },
+    { key: 'machine', title: '어떤 기계로 가공하나요?', valid: !hasMachines.value || (isMachineReady(machine.value) && isPositive(gear.value.hob.starts)), cta: hasMachines.value ? undefined : '건너뛰기' },
   ]
-  if (machine.value) {
+  if (isMachineReady(machine.value)) {
     list.push({ key: 'index', title: '분할 기어를 골라주세요', valid: true, cta: gear.value.hob.index ? undefined : '고르지 않고 넘어가기' })
     if (helical.value) {
       list.push({ key: 'diff', title: '차동 기어를 골라주세요', valid: true, cta: gear.value.hob.diff ? undefined : '고르지 않고 넘어가기' })
@@ -274,14 +278,18 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
             <!-- 기계 -->
             <template v-else-if="step.key === 'machine'">
               <div v-if="!hasMachines" class="rounded-2xl bg-muted p-5">
-                <p class="font-semibold">등록된 기계가 없어요</p>
-                <p class="mt-1 text-sm text-muted">설정에서 기계를 등록하면 변환기어도 함께 기록할 수 있어요. 지금은 건너뛰어도 돼요.</p>
-                <UButton to="/settings" label="기계 등록하러 가기" variant="soft" class="mt-4" />
+                <p class="font-semibold">{{ workshop.machines.length ? '분할 상수를 넣은 기계가 없어요' : '등록된 기계가 없어요' }}</p>
+                <p class="mt-1 text-sm text-muted">기계를 등록하면 변환기어도 함께 기록할 수 있어요. 지금은 건너뛰어도 돼요.</p>
+                <UButton
+                  :to="workshop.machines[0] ? `/settings/machines/${workshop.machines[0].id}` : '/settings/machines/new'"
+                  :label="workshop.machines.length ? '분할 상수 넣으러 가기' : '기계 등록하러 가기'" variant="soft" class="mt-4"
+                />
               </div>
               <template v-else>
                 <ul class="space-y-2">
                   <li v-for="m in workshop.machines" :key="m.id">
                     <button
+                      v-if="isMachineReady(m)"
                       type="button"
                       class="flex w-full items-center justify-between rounded-2xl border-2 px-5 py-4 text-left transition-colors"
                       :class="gear.hob.machineId === m.id ? 'border-primary bg-primary/5' : 'border-default'"
@@ -289,10 +297,21 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
                     >
                       <span>
                         <span class="block text-lg font-bold">{{ m.name || '이름 없음' }}</span>
-                        <span class="text-sm text-muted tabular-nums">분할 {{ m.indexConstant }} · 차동 {{ m.differentialConstant }}</span>
+                        <span class="text-sm text-muted tabular-nums">분할 {{ m.indexConstant }}{{ isPositive(m.differentialConstant) ? ` · 차동 ${m.differentialConstant}` : '' }}</span>
                       </span>
                       <UIcon v-if="gear.hob.machineId === m.id" name="i-lucide-circle-check" class="size-6 text-primary" />
                     </button>
+                    <!-- 상수가 없어서 아직 고를 수 없는 기계 -->
+                    <NuxtLink
+                      v-else :to="`/settings/machines/${m.id}`"
+                      class="flex w-full items-center justify-between rounded-2xl border-2 border-dashed border-default px-5 py-4"
+                    >
+                      <span>
+                        <span class="block text-lg font-bold text-muted">{{ m.name || '이름 없음' }}</span>
+                        <span class="text-sm font-semibold text-error">분할 상수를 넣어야 쓸 수 있어요</span>
+                      </span>
+                      <UIcon name="i-lucide-chevron-right" class="size-5 text-dimmed" />
+                    </NuxtLink>
                   </li>
                 </ul>
                 <div>
@@ -354,6 +373,13 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
                 </template>
               </div>
 
+              <UAlert
+                v-if="step.key === 'diff' && !isPositive(machine?.differentialConstant)"
+                color="warning" variant="subtle" icon="i-lucide-triangle-alert"
+                title="이 기계에 차동 상수가 없어요"
+                description="헬리컬 기어의 차동 기어를 찾으려면 기계 설정에서 차동 상수를 넣어 주세요."
+                :actions="[{ label: '기계 설정', to: `/settings/machines/${machine?.id}`, color: 'warning', variant: 'solid' }]"
+              />
               <!-- 조합 목록. 다시 찾는 중이면 흐리게 + 로딩 -->
               <div class="relative min-h-40">
                 <div v-if="showLoading" class="absolute inset-x-0 top-6 z-10 flex flex-col items-center gap-3">

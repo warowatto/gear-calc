@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DEFAULT_GEAR_SET, parseGearInput } from '~/utils/changeGears'
+import { parseGearInput } from '~/utils/changeGears'
 
 const workshop = useWorkshop()
 const toast = useToast()
@@ -46,10 +46,6 @@ function removeGear(teeth: number) {
   workshop.value.gears = workshop.value.gears.filter(g => g.teeth !== teeth)
 }
 
-function loadDefaultGears() {
-  workshop.value.gears = toOwnedGears(DEFAULT_GEAR_SET)
-}
-
 const clearOpen = ref(false)
 function clearAll() {
   workshop.value.gears = []
@@ -76,7 +72,6 @@ function clearAll() {
       <div class="mb-4 flex items-center justify-between">
         <span class="font-semibold tabular-nums">{{ workshop.gears.length }}종 · {{ totalGears }}개</span>
         <span class="flex gap-1">
-          <UButton label="기본 세트" color="neutral" variant="soft" size="sm" @click="loadDefaultGears" />
           <UButton label="모두 삭제" color="error" variant="soft" size="sm" :disabled="!workshop.gears.length" @click="clearOpen = true" />
         </span>
       </div>

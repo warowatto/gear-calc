@@ -8,27 +8,6 @@ const gearPreview = computed(() => {
   return list.length > 12 ? `${list.slice(0, 12).join(', ')} …` : list.join(', ')
 })
 
-// ── 기계 ──
-const openId = ref<string | null>(null)
-const confirmDeleteId = ref<string | null>(null)
-
-function addMachine() {
-  const m = newMachine(`호빙머신 ${workshop.value.machines.length + 1}`)
-  workshop.value.machines.push(m)
-  openId.value = m.id
-}
-
-function removeMachine(id: string) {
-  if (confirmDeleteId.value !== id) {
-    confirmDeleteId.value = id
-    setTimeout(() => {
-      if (confirmDeleteId.value === id) confirmDeleteId.value = null
-    }, 3000)
-    return
-  }
-  workshop.value.machines = workshop.value.machines.filter(m => m.id !== id)
-  confirmDeleteId.value = null
-}
 </script>
 
 <template>
@@ -60,54 +39,31 @@ function removeMachine(id: string) {
       <UIcon name="i-lucide-chevron-right" class="size-5 shrink-0 text-dimmed" />
     </NuxtLink>
 
-    <UCard :ui="{ body: 'p-4 sm:p-4' }">
-      <div class="mb-3 flex items-center justify-between">
-        <h2 class="font-semibold">기계</h2>
-        <UButton icon="i-lucide-plus" label="기계 추가" size="md" variant="soft" @click="addMachine" />
+    <UCard>
+      <div class="mb-2 flex items-center justify-between">
+        <h2 class="text-lg font-bold">기계</h2>
+        <UButton to="/settings/machines/new" icon="i-lucide-plus" label="기계 추가" size="md" variant="soft" />
       </div>
 
-      <p v-if="!workshop.machines.length" class="text-sm text-muted">등록된 기계가 없습니다.</p>
+      <p v-if="!workshop.machines.length" class="py-4 text-sm text-muted">
+        등록된 기계가 없어요. 기계를 등록하면 분할·차동 변환기어를 계산할 수 있어요.
+      </p>
 
-      <ul class="divide-y divide-default">
+      <ul class="-mx-2 divide-y divide-default">
         <li v-for="m in workshop.machines" :key="m.id">
-          <UCollapsible :open="openId === m.id" @update:open="v => openId = v ? m.id : null">
-            <button type="button" class="flex w-full items-center justify-between gap-3 py-3 text-left">
-              <span>
-                <span class="block font-semibold">{{ m.name || '이름 없음' }}</span>
-                <span class="text-xs text-muted tabular-nums">분할 {{ m.indexConstant }} · 차동 {{ m.differentialConstant }}</span>
+          <NuxtLink :to="`/settings/machines/${m.id}`" class="flex items-center gap-3 rounded-xl px-2 py-3 active:bg-elevated">
+            <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UIcon name="i-lucide-factory" class="size-5" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate font-bold">{{ m.name || '이름 없음' }}</span>
+              <span v-if="isMachineReady(m)" class="text-xs text-muted tabular-nums">
+                분할 {{ m.indexConstant }}{{ isPositive(m.differentialConstant) ? ` · 차동 ${m.differentialConstant}` : '' }}
               </span>
-              <UIcon name="i-lucide-chevron-down" class="size-5 shrink-0 text-muted transition-transform" :class="openId === m.id && 'rotate-180'" />
-            </button>
-            <template #content>
-              <div class="space-y-4 pb-4">
-                <UFormField label="기계 이름">
-                  <UInput v-model="m.name" size="xl" class="w-full" />
-                </UFormField>
-                <div class="grid grid-cols-2 gap-3">
-                  <UFormField label="분할 상수">
-                    <UInputNumber v-model="m.indexConstant" size="xl" :min="0" :step="1" :format-options="{ maximumFractionDigits: 6 }" class="w-full" />
-                  </UFormField>
-                  <UFormField label="차동 상수">
-                    <UInputNumber v-model="m.differentialConstant" size="xl" :min="0" :step="0.1" :format-options="{ maximumFractionDigits: 6 }" class="w-full" />
-                  </UFormField>
-                </div>
-                <p class="text-xs text-muted">
-                  분할 기어비 = 분할 상수 × 줄수 / 잇수<br>
-                  차동 기어비 = 차동 상수 × sinβ / (mn × 줄수)
-                </p>
-                <USwitch v-model="m.twoStage" size="lg" label="2단 조합 (A/B × C/D)" />
-                <USwitch v-model="m.useClearance" size="lg" label="간섭 조건 검사" />
-                <UFormField v-if="m.useClearance" label="여유 잇수" help="A + B ≥ C + 여유, C + D ≥ B + 여유">
-                  <UInputNumber v-model="m.clearance" size="xl" :min="0" :step="1" class="w-full" />
-                </UFormField>
-                <UButton
-                  :label="confirmDeleteId === m.id ? '한 번 더 누르면 삭제됩니다' : '기계 삭제'"
-                  color="error" :variant="confirmDeleteId === m.id ? 'solid' : 'soft'" icon="i-lucide-trash-2" block
-                  @click="removeMachine(m.id)"
-                />
-              </div>
-            </template>
-          </UCollapsible>
+              <span v-else class="text-xs font-semibold text-error">분할 상수를 입력해 주세요</span>
+            </span>
+            <UIcon name="i-lucide-chevron-right" class="size-5 shrink-0 text-dimmed" />
+          </NuxtLink>
         </li>
       </ul>
     </UCard>

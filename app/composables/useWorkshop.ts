@@ -1,5 +1,3 @@
-import { DEFAULT_GEAR_SET } from '~/utils/changeGears'
-
 export interface Machine {
   id: string
   name: string
@@ -26,25 +24,23 @@ export interface Workshop {
   machines: Machine[]
 }
 
-export const newMachine = (name = '새 기계', id = Math.random().toString(36).slice(2, 10)): Machine => ({
-  id,
-  name,
-  indexConstant: 24,
-  differentialConstant: 7.95775,
+/** 새 기계. 상수는 기계마다 달라서 미리 채우지 않는다 (비어 있으면 NaN) */
+export const newMachine = (): Machine => ({
+  id: Math.random().toString(36).slice(2, 10),
+  name: '',
+  indexConstant: NaN,
+  differentialConstant: NaN,
   twoStage: true,
-  useClearance: true,
-  clearance: 15,
+  useClearance: false,
+  clearance: NaN,
 })
 
-export const toOwnedGears = (list: number[]): OwnedGear[] => {
-  const map = new Map<number, number>()
-  for (const t of list) map.set(t, (map.get(t) ?? 0) + 1)
-  return [...map].sort((a, b) => a[0] - b[0]).map(([teeth, qty]) => ({ teeth, qty }))
-}
+/** 분할 상수가 있어야 변환기어를 계산할 수 있다 (차동 상수는 헬리컬일 때만 필요) */
+export const isMachineReady = (m: Machine | undefined): boolean => !!m && isPositive(m.indexConstant)
 
 /** 보유 변환기어와 등록된 기계 */
 export const useWorkshop = () =>
   usePersistedState<Workshop>('workshop', () => ({
-    gears: toOwnedGears(DEFAULT_GEAR_SET),
-    machines: [newMachine('호빙머신 1', 'default')],
+    gears: [],
+    machines: [],
   }))

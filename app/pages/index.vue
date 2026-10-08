@@ -1,5 +1,25 @@
 <script setup lang="ts">
 const gears = useGears()
+const workshop = useWorkshop()
+
+// 처음 쓰는 사람: 기계 → 보유 변환기어 → 첫 기어 순서로 안내
+const setupSteps = computed(() => [
+  {
+    title: '기계 등록',
+    desc: '분할·차동 상수를 넣어요',
+    done: workshop.value.machines.some(isMachineReady),
+    doneText: `${workshop.value.machines.filter(isMachineReady).length}대`,
+    to: '/settings/machines/new',
+  },
+  {
+    title: '보유 변환기어 등록',
+    desc: '가진 변환기어 잇수를 넣어요',
+    done: workshop.value.gears.length > 0,
+    doneText: `${workshop.value.gears.length}종`,
+    to: '/settings/gears',
+  },
+])
+const setupDone = computed(() => setupSteps.value.every(s => s.done))
 const draft = useGearDraft()
 const query = ref('')
 
@@ -53,11 +73,52 @@ function addGear() {
       />
     </div>
 
-    <div v-if="!gears.list.length" class="rounded-2xl bg-default px-6 py-14 text-center">
-      <UIcon name="i-lucide-cog" class="size-12 text-primary" />
-      <p class="mt-4 text-xl font-bold">첫 기어를 등록해 보세요</p>
-      <p class="mt-2 text-muted">걸치기 치수와 변환기어를<br>한 번에 계산하고 기록해요.</p>
-      <UButton icon="i-lucide-plus" label="기어 등록하기" size="xl" class="mt-6 rounded-2xl px-6 font-bold" @click="addGear" />
+    <!-- 첫 이용: 설정부터 차례로 -->
+    <div v-if="!gears.list.length" class="rounded-2xl bg-default p-6">
+      <p class="text-2xl leading-snug font-bold">
+        <template v-if="setupDone">준비가 끝났어요<br>첫 기어를 등록해 볼까요?</template>
+        <template v-else-if="setupSteps[0]!.done">좋아요<br>이제 보유 변환기어를 넣어 주세요</template>
+        <template v-else>처음이시군요<br>기계부터 등록해 볼까요?</template>
+      </p>
+      <p class="mt-2 text-muted">기계와 보유 변환기어를 넣어 두면 걸치기 치수와 변환기어를 한 번에 계산하고 기록해요.</p>
+
+      <ol class="mt-6 space-y-2">
+        <li v-for="(step, i) in setupSteps" :key="step.to">
+          <NuxtLink
+            :to="step.to"
+            class="flex items-center gap-3 rounded-2xl border-2 px-4 py-4 transition-colors active:bg-elevated"
+            :class="step.done ? 'border-transparent bg-muted' : 'border-primary'"
+          >
+            <span
+              class="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+              :class="step.done ? 'bg-success text-inverted' : 'bg-primary text-inverted'"
+            >
+              <UIcon v-if="step.done" name="i-lucide-check" class="size-5" />
+              <template v-else>{{ i + 1 }}</template>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-bold">{{ step.title }}</span>
+              <span class="text-sm text-muted">{{ step.done ? `등록됨 · ${step.doneText}` : step.desc }}</span>
+            </span>
+            <UIcon name="i-lucide-chevron-right" class="size-5 shrink-0 text-dimmed" />
+          </NuxtLink>
+        </li>
+        <li>
+          <button
+            type="button"
+            class="flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-colors active:bg-elevated"
+            :class="setupDone ? 'border-primary' : 'border-default'"
+            @click="addGear"
+          >
+            <span class="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold" :class="setupDone ? 'bg-primary text-inverted' : 'bg-elevated text-muted'">3</span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-bold">첫 기어 등록</span>
+              <span class="text-sm text-muted">{{ setupDone ? '이제 기어를 등록해 보세요' : '기계 없이도 걸치기 치수는 계산할 수 있어요' }}</span>
+            </span>
+            <UIcon name="i-lucide-chevron-right" class="size-5 shrink-0 text-dimmed" />
+          </button>
+        </li>
+      </ol>
     </div>
 
     <p v-else-if="!items.length" class="py-8 text-center text-sm text-muted">검색 결과가 없어요.</p>

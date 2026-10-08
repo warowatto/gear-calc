@@ -129,11 +129,6 @@ const sum = (c: GearCombo) => c.a + c.b + (c.c ?? 0) + (c.d ?? 0)
 const keyOf = (c: GearCombo) =>
   `${[c.a, c.c ?? 0].sort((x, y) => x - y).join(',')}/${[c.b, c.d ?? 0].sort((x, y) => x - y).join(',')}`
 
-export const DEFAULT_GEAR_SET = [
-  20, 23, 24, 25, 30, 33, 34, 35, 37, 40, 41, 43, 45, 47, 50, 53, 55, 57, 59, 60,
-  61, 65, 67, 70, 71, 73, 75, 79, 80, 83, 85, 89, 90, 95, 97, 100,
-]
-
 export const sameCombo = (x: GearCombo, y: GearCombo) =>
   x.a === y.a && x.b === y.b && x.c === y.c && x.d === y.d
 

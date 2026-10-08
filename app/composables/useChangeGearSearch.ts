@@ -34,7 +34,7 @@ export function useChangeGearSearch(gear: Ref<GearRecord>) {
   const searchOpts = computed(() => ({
     gears: usableGears.value,
     twoStage: machine.value?.twoStage ?? true,
-    clearance: machine.value?.useClearance ? machine.value.clearance ?? 0 : null,
+    clearance: machine.value?.useClearance && isNumber(machine.value.clearance) ? machine.value.clearance : null,
     limit: 10,
   }))
 
