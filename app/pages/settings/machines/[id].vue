@@ -9,13 +9,13 @@ const isNew = route.params.id === 'new'
 const original = isNew ? undefined : workshop.machineById(String(route.params.id))
 const draft = reactive<Machine>(original ? { ...original } : newMachine())
 
-const nameValid = computed(() => draft.name.trim().length > 0)
-const indexValid = computed(() => isPositive(draft.indexConstant))
-const diffValid = computed(() => draft.differentialConstant === null || Number.isNaN(draft.differentialConstant) || isPositive(draft.differentialConstant))
-const clearanceValid = computed(() => !draft.useClearance || (isNumber(draft.clearance) && draft.clearance >= 0))
+// 입력 검사는 zod 스키마 (문구도 스키마에 있다)
+const parsed = computed(() => machineInputSchema.safeParse(draft))
+const problems = computed(() => formProblems(machineInputSchema, draft))
+// 처음부터 빨간 문구를 띄우지 않고, 저장을 눌렀을 때 막힌 이유를 보여준다
+const showProblems = ref(false)
 // 분할상수는 보통 1보다 크다. 작으면 기어비를 잘못 넣었을 가능성이 있어 알려준다 (저장은 막지 않음)
-const indexLooksLikeRatio = computed(() => indexValid.value && draft.indexConstant < 1)
-const canSave = computed(() => nameValid.value && indexValid.value && diffValid.value && clearanceValid.value)
+const indexLooksLikeRatio = computed(() => isPositive(draft.indexConstant) && draft.indexConstant < 1)
 
 function goBack() {
   if (window.history.state?.back) router.back()
@@ -24,8 +24,12 @@ function goBack() {
 
 const toast = useToast()
 function save() {
-  if (!canSave.value) return
-  const m: Machine = { ...draft, name: draft.name.trim() }
+  if (!parsed.value.success) {
+    showProblems.value = true
+    return
+  }
+  // 검사를 통과한 값 (이름 앞뒤 공백 제거, 빈 칸은 NaN)
+  const m: Machine = parsed.value.data
   workshop.saveMachine(m)
   toast.add({ title: isNew ? `'${m.name}'을(를) 등록했어요` : '저장했어요', color: 'success', duration: 2000 })
   goBack()
@@ -147,11 +151,18 @@ function remove() {
       </div>
     </UCard>
 
+    <!-- 저장이 막힌 이유 -->
+    <ul v-if="showProblems && problems.length" class="space-y-1 px-1" role="alert">
+      <li v-for="msg in problems" :key="msg" class="flex items-center gap-1.5 text-sm font-semibold text-error">
+        <UIcon name="i-lucide-circle-alert" class="size-4 shrink-0" />{{ msg }}
+      </li>
+    </ul>
+
     <!-- 하단 저장 버튼 (탭바 위) -->
     <div class="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 px-4">
       <div class="mx-auto max-w-3xl">
         <UButton
-          :label="isNew ? '등록하기' : '저장하기'" size="xl" block :disabled="!canSave"
+          :label="isNew ? '등록하기' : '저장하기'" size="xl" block
           class="pointer-events-auto h-14 rounded-2xl text-lg font-bold shadow-lg"
           @click="save"
         />

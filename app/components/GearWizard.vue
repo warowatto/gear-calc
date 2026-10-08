@@ -59,7 +59,8 @@ watch(() => JSON.stringify(gear.value.spec), () => {
   customOpen.value = false
   customK.value = NaN
 })
-const showTolerance = ref(!!(gear.value.span.upper || gear.value.span.lower))
+// 공차 입력은 처음부터 켜 둔다 (끄면 넣었던 치수차를 지운다)
+const showTolerance = ref(true)
 // 공차 입력을 끄면 넣었던 치수차도 지운다 (꺼져 있는데 허용 구간이 남아 있지 않게)
 watch(showTolerance, (on) => {
   if (!on) {
@@ -83,25 +84,30 @@ interface Step {
   title: string
   description?: string
   valid: boolean
+  /** 막힌 이유 (있으면 버튼 위에 보여준다) */
+  problems?: string[]
   cta?: string
 }
 
 const sizeLabel = computed(() => gear.value.spec.unit === 'dp' ? 'DP' : '모듈')
 
+// "다음"이 막힐 때 무엇이 문제인지 보여준다
+const withProblems = (problems: string[]) => ({ valid: problems.length === 0, problems })
+const sizeProblems = computed(() => formProblems(sizeInputSchema, gear.value.spec))
+const specProblems = computed(() => formProblems(specInputSchema, gear.value.spec))
+const spanProblems = computed(() => formProblems(spanInputSchema, gear.value.span))
+
 const steps = computed<Step[]>(() => {
   const s = gear.value.spec
   const list: Step[] = [
-    { key: 'size', title: `${sizeLabel.value}을 알려주세요`, description: s.unit === 'dp' ? '헬리컬은 치직각 DP(NDP)를 입력하세요.' : '헬리컬은 치직각 모듈을 입력하세요.', valid: s.unit === 'dp' ? isPositive(s.dp) : isPositive(s.module) },
+    { key: 'size', title: `${sizeLabel.value}을 알려주세요`, description: s.unit === 'dp' ? '헬리컬은 치직각 DP(NDP)를 입력하세요.' : '헬리컬은 치직각 모듈을 입력하세요.', ...withProblems(sizeProblems.value) },
     {
       key: 'spec',
       title: '기어 제원을 알려주세요',
       description: '평기어는 비틀림각 0°, 전위가 없으면 전위계수 0으로 두세요.',
-      valid: Number.isInteger(s.teeth) && s.teeth >= 3
-        && isPositive(s.pressureAngle) && s.pressureAngle < 45
-        && isNumber(s.helixAngle) && s.helixAngle >= 0 && s.helixAngle < 90
-        && isNumber(s.profileShift) && Math.abs(s.profileShift) < 3,
+      ...withProblems(specProblems.value),
     },
-    { key: 'span', title: '걸치기 잇수를 확인해주세요', description: '추천 잇수로 계산했어요. 다른 잇수로 잴 거면 골라주세요.', valid: !!span.value && (!customOpen.value || customValid.value) },
+    { key: 'span', title: '걸치기 잇수를 확인해주세요', description: '추천 잇수로 계산했어요. 다른 잇수로 잴 거면 골라주세요.', valid: !!span.value && (!customOpen.value || customValid.value) && !spanProblems.value.length, problems: spanProblems.value },
     { key: 'machine', title: '어떤 기계로 가공하나요?', valid: !hasMachines.value || (isMachineReady(machine.value) && isPositive(gear.value.hob.starts)), cta: hasMachines.value ? undefined : '건너뛰기' },
   ]
   if (isMachineReady(machine.value)) {
@@ -224,8 +230,8 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
             <!-- 모듈 / DP -->
             <template v-if="step.key === 'size'">
               <UTabs v-model="gear.spec.unit" :items="unitItems" :content="false" size="lg" class="w-full" />
-              <BigNumberInput v-if="gear.spec.unit === 'module'" :key="'m'" v-model="gear.spec.module" placeholder="2" suffix="mm" autofocus />
-              <BigNumberInput v-else :key="'dp'" v-model="gear.spec.dp" placeholder="10" suffix="DP" autofocus />
+              <BigNumberInput v-if="gear.spec.unit === 'module'" :key="'m'" v-model="gear.spec.module" placeholder="예) 2" suffix="mm" autofocus />
+              <BigNumberInput v-else :key="'dp'" v-model="gear.spec.dp" placeholder="예) 10" suffix="DP" autofocus />
               <ChoiceChips v-if="gear.spec.unit === 'module'" v-model="gear.spec.module" :options="moduleChips" />
               <ChoiceChips v-else v-model="gear.spec.dp" :options="dpChips" />
               <p v-if="gear.spec.unit === 'dp' && isPositive(gear.spec.dp)" class="text-sm text-muted">
@@ -237,32 +243,22 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
             <template v-else-if="step.key === 'spec'">
               <div class="grid grid-cols-2 gap-x-5 gap-y-8">
                 <div>
-                  <p class="mb-2 text-sm font-semibold text-muted">잇수</p>
-                  <BigNumberInput v-model="gear.spec.teeth" placeholder="30" suffix="T" size="md" autofocus />
+                  <p class="mb-2 text-lg font-bold text-toned">잇수</p>
+                  <BigNumberInput v-model="gear.spec.teeth" placeholder="예) 30" suffix="T" size="md" autofocus />
                 </div>
                 <div>
-                  <p class="mb-2 text-sm font-semibold text-muted">전위계수</p>
-                  <BigNumberInput v-model="gear.spec.profileShift" placeholder="0" size="md" allow-negative />
+                  <p class="mb-2 text-lg font-bold text-toned">전위계수</p>
+                  <BigNumberInput v-model="gear.spec.profileShift" placeholder="0" size="md" allow-negative zero-when-empty />
                 </div>
                 <!-- 각도는 소수 ↔ 도분초 전환. 도분초는 칸이 세 개라 한 줄을 다 쓴다 -->
-                <AngleInput v-model="gear.spec.pressureAngle" label="압력각" pref-key="pressure" placeholder="20" :options="pressureChips" class="col-span-2" />
-                <AngleInput v-model="gear.spec.helixAngle" label="비틀림각" pref-key="helix" :options="helixChips" class="col-span-2" />
+                <AngleInput v-model="gear.spec.pressureAngle" label="압력각" pref-key="pressure" placeholder="예) 20" :options="pressureChips" class="col-span-2" />
+                <AngleInput v-model="gear.spec.helixAngle" label="비틀림각" pref-key="helix" :options="helixChips" zero-when-empty class="col-span-2" />
               </div>
             </template>
 
             <!-- 걸치기 잇수 -->
             <template v-else-if="step.key === 'span' && span">
-              <div class="rounded-2xl bg-muted p-5">
-                <p class="text-sm text-muted">걸치기 치수 W{{ helical ? ' (치직각)' : '' }}</p>
-                <p class="mt-1 text-4xl font-bold tabular-nums text-highlighted">
-                  {{ fmt(span.span) }}<span class="ml-1 text-lg font-semibold text-muted">mm</span>
-                </p>
-                <p v-if="gear.spec.unit === 'dp'" class="mt-1 font-semibold tabular-nums text-muted">{{ fmt(span.span / MM_PER_INCH, 5) }} in</p>
-                <div v-if="showTolerance" class="mt-4 border-t border-default pt-4">
-                  <ToleranceRange v-if="span.hasTolerance" :min="span.min" :max="span.max" />
-                  <p v-else class="text-sm text-dimmed">치수차를 입력하면 허용 구간이 나와요.</p>
-                </div>
-              </div>
+              <p v-if="helical" class="text-sm text-muted">헬리컬은 치직각 기준 치수예요.</p>
 
               <ul class="space-y-2">
                 <li v-for="o in kOptions" :key="o.k">
@@ -276,7 +272,10 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
                       {{ o.k }}개 걸치기
                       <UBadge v-if="o.recommended" label="추천" color="primary" variant="subtle" />
                     </span>
-                    <span class="font-semibold tabular-nums text-muted">{{ fmt(o.W) }} mm</span>
+                    <span class="text-right tabular-nums">
+                      <span class="font-bold" :class="span.spanTeeth === o.k ? 'text-lg text-primary' : 'text-muted'">{{ fmt(o.W) }} mm</span>
+                      <span v-if="gear.spec.unit === 'dp'" class="block text-xs text-muted">{{ fmt(o.W / MM_PER_INCH, 5) }} in</span>
+                    </span>
                   </button>
                 </li>
                 <li>
@@ -306,13 +305,17 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
               <USwitch v-model="showTolerance" size="lg" label="치수 공차도 입력할래요" />
               <div v-if="showTolerance" class="grid grid-cols-2 gap-6">
                 <div>
-                  <p class="mb-2 text-sm text-muted">위 치수차</p>
-                  <BigNumberInput v-model="gear.span.upper" placeholder="0" suffix="mm" allow-negative size="md" />
+                  <p class="mb-2 text-lg font-bold text-toned">위 치수차</p>
+                  <BigNumberInput v-model="gear.span.upper" placeholder="0" suffix="mm" allow-negative size="md" zero-when-empty />
                 </div>
                 <div>
-                  <p class="mb-2 text-sm text-muted">아래 치수차</p>
-                  <BigNumberInput v-model="gear.span.lower" placeholder="0" suffix="mm" allow-negative size="md" />
+                  <p class="mb-2 text-lg font-bold text-toned">아래 치수차</p>
+                  <BigNumberInput v-model="gear.span.lower" placeholder="0" suffix="mm" allow-negative size="md" zero-when-empty />
                 </div>
+              </div>
+              <div v-if="showTolerance" class="rounded-2xl bg-muted px-5 py-4">
+                <ToleranceRange v-if="span.hasTolerance" :min="span.min" :max="span.max" />
+                <p v-else class="text-sm text-dimmed">치수차를 입력하면 허용 구간이 나와요.</p>
               </div>
             </template>
 
@@ -442,6 +445,12 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
             </template>
 
           </div>
+
+          <ul v-if="step.problems?.length" class="mt-6 space-y-1" role="alert">
+            <li v-for="msg in step.problems" :key="msg" class="flex items-center gap-1.5 text-sm font-semibold text-error">
+              <UIcon name="i-lucide-circle-alert" class="size-4 shrink-0" />{{ msg }}
+            </li>
+          </ul>
         </section>
       </Transition>
     </main>

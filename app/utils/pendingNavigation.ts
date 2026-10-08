@@ -1,3 +1,5 @@
+import { internalPathSchema } from './schemas'
+
 // 브라우저 기록을 되돌린 뒤 이어서 갈 곳. 되돌린 화면을 브라우저가 새로 불러오면 실행 중이던 코드가 사라지므로
 // 탭 저장소(sessionStorage)에 적어 두고 앱이 다시 뜰 때 이어서 이동한다. 오래된 것은 따르지 않는다
 const KEY = 'gear-calc:pending-navigation'
@@ -23,7 +25,10 @@ export function takePendingNavigation(): string | null {
     const raw = sessionStorage.getItem(KEY)
     sessionStorage.removeItem(KEY)
     const saved = raw ? JSON.parse(raw) : null
-    return saved && Date.now() - saved.at < MAX_AGE ? saved.to : null
+    if (!saved || Date.now() - saved.at >= MAX_AGE) return null
+    // 앱 안의 경로만 따른다
+    const to = internalPathSchema.safeParse(saved.to)
+    return to.success ? to.data : null
   }
   catch {
     return null

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 각도 입력: 소수 도(18.5°) ↔ 도·분·초(18° 30′ 0″) 전환. 값은 항상 소수 도로 저장.
+// 각도 입력: 도·분·초(18° 30′ 0″, 기본) ↔ 소수 도(18.5°) 전환. 값은 항상 소수 도로 저장.
 // 고른 입력 방식은 prefKey 별로 기억한다 (압력각·비틀림각 따로)
 const model = defineModel<number>({ required: true })
 const props = defineProps<{
@@ -8,13 +8,20 @@ const props = defineProps<{
   placeholder?: string
   /** 자주 쓰는 값 칩 */
   options?: { label: string, value: number }[]
+  /** 비우면 0 (비틀림각처럼 0이 정상 값일 때) */
+  zeroWhenEmpty?: boolean
 }>()
 
 const prefs = usePrefsStore()
+// 기본은 도분초. 사용자가 소수로 바꾸면 그 항목만 기억한다
 const dms = computed({
-  get: () => !!prefs.angleDms[props.prefKey],
+  get: () => prefs.angleDms[props.prefKey] ?? true,
   set: v => prefs.setAngleDms(props.prefKey, v),
 })
+const modeOptions = [
+  { label: '도분초', value: true },
+  { label: '소수', value: false },
+]
 
 const parts = reactive(toDmsParts(model.value))
 const partsValid = computed(() =>
@@ -47,17 +54,15 @@ watch(() => [parts.d, parts.m, parts.s], () => {
 <template>
   <div>
     <div class="mb-2 flex items-center justify-between">
-      <p class="text-sm font-semibold text-muted">{{ label }}</p>
-      <button type="button" class="text-xs font-semibold text-primary" @click="dms = !dms">
-        {{ dms ? '소수로 입력' : '도분초로 입력' }}
-      </button>
+      <p class="text-lg font-bold text-toned">{{ label }}</p>
+      <SegmentedToggle v-model="dms" :options="modeOptions" />
     </div>
 
-    <BigNumberInput v-if="!dms" v-model="model" :placeholder="placeholder ?? '0'" suffix="°" size="md" :digits="6" />
+    <BigNumberInput v-if="!dms" v-model="model" :placeholder="placeholder ?? '0'" suffix="°" size="md" :digits="6" :zero-when-empty="zeroWhenEmpty" />
     <div v-else class="grid grid-cols-3 gap-3">
-      <BigNumberInput v-model="parts.d" :placeholder="placeholder ?? '0'" suffix="°" size="md" />
-      <BigNumberInput v-model="parts.m" placeholder="0" suffix="′" size="md" />
-      <BigNumberInput v-model="parts.s" placeholder="0" suffix="″" size="md" />
+      <BigNumberInput v-model="parts.d" :placeholder="placeholder ?? '0'" suffix="°" size="md" :zero-when-empty="zeroWhenEmpty" />
+      <BigNumberInput v-model="parts.m" placeholder="0" suffix="′" size="md" zero-when-empty />
+      <BigNumberInput v-model="parts.s" placeholder="0" suffix="″" size="md" zero-when-empty />
     </div>
 
     <div class="mt-2 flex min-h-8 items-center justify-between gap-2">

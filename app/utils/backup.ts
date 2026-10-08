@@ -1,6 +1,8 @@
 // 백업 파일 만들기·읽기·합치기 (기어 기록 + 기계 + 보유 변환기어)
+import type { z } from 'zod'
 import type { GearRecord } from './gearRecord'
-import type { Machine, OwnedGear, Workshop } from './workshop'
+import type { Workshop } from './workshop'
+import { backupEnvelopeSchema, ownedGearSchema, storedGearSchema, storedMachineSchema } from './schemas'
 
 export const BACKUP_APP = 'gear-calc'
 export const BACKUP_VERSION = 1
@@ -34,27 +36,20 @@ export function backupFileName(now = new Date()) {
   return `gear-calc-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}.json`
 }
 
-const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
-const isStr = (v: unknown): v is string => typeof v === 'string'
-
-function isGearRecord(v: unknown): v is GearRecord {
-  if (!isObj(v) || !isStr(v.id) || !isObj(v.spec) || !isObj(v.span) || !isObj(v.hob)) return false
-  const s = v.spec
-  return (s.unit === 'module' || s.unit === 'dp') && isNum(s.teeth) && isNum(s.pressureAngle)
-}
-
-function isMachine(v: unknown): v is Machine {
-  return isObj(v) && isStr(v.id) && isStr(v.name) && isNum(v.indexConstant) && isNum(v.differentialConstant)
-}
-
-function isOwnedGear(v: unknown): v is OwnedGear {
-  return isObj(v) && isNum(v.teeth) && v.teeth > 0 && isNum(v.qty) && v.qty > 0
+/** 항목을 하나씩 검사해서 맞는 것만 남긴다 */
+function keepValid<T>(schema: z.ZodType<T>, items: unknown[]) {
+  const ok: T[] = []
+  for (const item of items) {
+    const r = schema.safeParse(item)
+    if (r.success) ok.push(r.data)
+  }
+  return { ok, skipped: items.length - ok.length }
 }
 
 /**
- * 파일 내용을 읽어 검사한다. 형식이 틀리면 사람이 읽을 수 있는 메시지로 throw.
+ * 파일 내용을 읽어 검사한다 (zod). 형식이 틀리면 사람이 읽을 수 있는 메시지로 throw.
  * 일부 항목만 깨졌으면 그 항목만 빼고 skipped 로 개수를 알려준다.
+ * 빈칸이 null 로 저장된 숫자는 NaN(비어 있음)으로 되돌린다.
  */
 export function parseBackup(text: string): BackupData & { skipped: number, exportedAt?: string } {
   let raw: unknown
@@ -64,24 +59,19 @@ export function parseBackup(text: string): BackupData & { skipped: number, expor
   catch {
     throw new Error('JSON 파일이 아니에요.')
   }
-  if (!isObj(raw) || raw.app !== BACKUP_APP) throw new Error('기어 계산기 백업 파일이 아니에요.')
-  if (!isNum(raw.version) || raw.version > BACKUP_VERSION) throw new Error('더 새로운 버전에서 만든 파일이라 읽을 수 없어요. 앱을 새로고침해 보세요.')
+  const envelope = backupEnvelopeSchema.safeParse(raw)
+  if (!envelope.success || envelope.data.app !== BACKUP_APP) throw new Error('기어 계산기 백업 파일이 아니에요.')
+  if (envelope.data.version > BACKUP_VERSION) throw new Error('더 새로운 버전에서 만든 파일이라 읽을 수 없어요. 앱을 새로고침해 보세요.')
 
-  const gearsIn = Array.isArray(raw.gears) ? raw.gears : []
-  const ws = isObj(raw.workshop) ? raw.workshop : {}
-  const machinesIn = Array.isArray(ws.machines) ? ws.machines : []
-  const ownedIn = Array.isArray(ws.gears) ? ws.gears : []
-
-  const gears = gearsIn.filter(isGearRecord)
-  const machines = machinesIn.filter(isMachine)
-  const owned = ownedIn.filter(isOwnedGear)
-  const skipped = (gearsIn.length - gears.length) + (machinesIn.length - machines.length) + (ownedIn.length - owned.length)
+  const gears = keepValid(storedGearSchema, envelope.data.gears)
+  const machines = keepValid(storedMachineSchema, envelope.data.workshop.machines)
+  const owned = keepValid(ownedGearSchema, envelope.data.workshop.gears)
 
   return {
-    gears,
-    workshop: { machines, gears: owned },
-    skipped,
-    exportedAt: isStr(raw.exportedAt) ? raw.exportedAt : undefined,
+    gears: gears.ok,
+    workshop: { machines: machines.ok, gears: owned.ok },
+    skipped: gears.skipped + machines.skipped + owned.skipped,
+    exportedAt: envelope.data.exportedAt,
   }
 }
 

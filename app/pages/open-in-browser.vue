@@ -6,7 +6,8 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
-const target = typeof route.query.to === 'string' && route.query.to.startsWith('/') ? route.query.to : '/'
+// 앱 안의 경로만 받는다 (//다른사이트 같은 값은 첫 화면으로)
+const target = redirectQuerySchema.parse(route.query.to)
 // 기본 브라우저에서 열 주소 (배포 경로 /gear-calc/ 포함)
 const fullUrl = new URL(router.resolve(target).href, window.location.origin).href
 const info = detectBrowser(navigator.userAgent)
