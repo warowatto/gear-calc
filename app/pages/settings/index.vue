@@ -57,9 +57,9 @@ const gearPreview = computed(() => {
             <span class="min-w-0 flex-1">
               <span class="block truncate font-bold">{{ m.name || '이름 없음' }}</span>
               <span v-if="isMachineReady(m)" class="text-xs text-muted tabular-nums">
-                분할 {{ m.indexConstant }}{{ isPositive(m.differentialConstant) ? ` · 차동 ${m.differentialConstant}` : '' }}
+                분할상수 {{ m.indexConstant }}{{ isPositive(m.differentialConstant) ? ` · 차동상수 ${m.differentialConstant}` : '' }}
               </span>
-              <span v-else class="text-xs font-semibold text-error">분할 상수를 입력해 주세요</span>
+              <span v-else class="text-xs font-semibold text-error">분할상수를 입력해 주세요</span>
             </span>
             <UIcon name="i-lucide-chevron-right" class="size-5 shrink-0 text-dimmed" />
           </NuxtLink>
@@ -68,7 +68,7 @@ const gearPreview = computed(() => {
     </UCard>
 
     <p class="px-1 text-xs text-muted">
-      설정은 이 기기의 브라우저에만 저장됩니다. 분할·차동 상수와 공식은 기계 취급설명서와 꼭 대조하세요.
+      설정은 이 기기의 브라우저에만 저장됩니다. 분할상수·차동상수와 계산식은 기계 취급설명서와 꼭 대조하세요.
     </p>
   </div>
 </template>

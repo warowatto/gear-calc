@@ -7,7 +7,7 @@ const drafts = useDraftsStore()
 const setupSteps = computed(() => [
   {
     title: '기계 등록',
-    desc: '분할·차동 상수를 넣어요',
+    desc: '분할상수를 넣어요',
     done: workshop.readyMachines.length > 0,
     doneText: `${workshop.readyMachines.length}대`,
     to: '/settings/machines/new',

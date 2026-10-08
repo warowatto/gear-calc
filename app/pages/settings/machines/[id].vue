@@ -13,6 +13,8 @@ const nameValid = computed(() => draft.name.trim().length > 0)
 const indexValid = computed(() => isPositive(draft.indexConstant))
 const diffValid = computed(() => draft.differentialConstant === null || Number.isNaN(draft.differentialConstant) || isPositive(draft.differentialConstant))
 const clearanceValid = computed(() => !draft.useClearance || (isNumber(draft.clearance) && draft.clearance >= 0))
+// 분할상수는 보통 1보다 크다. 작으면 기어비를 잘못 넣었을 가능성이 있어 알려준다 (저장은 막지 않음)
+const indexLooksLikeRatio = computed(() => indexValid.value && draft.indexConstant < 1)
 const canSave = computed(() => nameValid.value && indexValid.value && diffValid.value && clearanceValid.value)
 
 function goBack() {
@@ -29,8 +31,8 @@ function save() {
   goBack()
 }
 
-// ── 분할 상수를 모를 때: 변환기어 표의 한 줄로 거꾸로 구한다 ──
-// 분할 상수 = (A/B × C/D) × 잇수 ÷ 호브 줄수
+// ── 분할상수를 모를 때: 변환기어 표의 한 줄로 거꾸로 구한다 ──
+// 분할상수 = (A/B × C/D) × 잇수 ÷ 호브 줄수
 const helperOpen = ref(false)
 const sample = reactive({ teeth: NaN, starts: 1, a: NaN, b: NaN, c: NaN, d: NaN })
 const sampleConstant = computed(() => {
@@ -73,11 +75,18 @@ function remove() {
     </UCard>
 
     <UCard>
-      <p class="mb-2 text-sm font-semibold text-muted">분할 상수 <span class="text-error">*</span></p>
+      <p class="mb-2 text-sm font-semibold text-muted">분할상수 <span class="text-error">*</span></p>
       <BigNumberInput v-model="draft.indexConstant" placeholder="예) 24" size="md" />
-      <p class="mt-3 text-sm text-muted">
-        분할 기어비 = <b>분할 상수</b> × 호브 줄수 ÷ 잇수<br>
-        설명서에 <b>i = 24/Z</b> 처럼 나와 있으면 24예요.
+      <p v-if="indexLooksLikeRatio" class="mt-2 text-sm font-semibold text-warning">
+        값이 1보다 작아요. 기어마다 바뀌는 기어비(예: 0.8)를 넣은 건 아닌지 확인해 주세요.
+      </p>
+      <ul class="mt-3 space-y-1 text-sm text-muted">
+        <li>· <b>기계마다 정해진 값</b>이에요. 한 번 넣으면 어떤 기어를 깎든 그대로 써요.</li>
+        <li>· 설명서의 분할 체인지기어 식이 <b>i = 24 / Z</b> 라면 <b>24</b>를 넣어요.</li>
+        <li>· 깎을 기어마다 달라지는 <b>기어비</b>(예: 0.8)와는 다른 값이에요. 기어비는 앱이 계산해요.</li>
+      </ul>
+      <p class="mt-3 rounded-xl bg-muted px-4 py-2.5 text-xs text-muted tabular-nums">
+        분할 기어비 = 분할상수 × 호브 줄수 ÷ 잇수
       </p>
 
       <button type="button" class="mt-4 flex w-full items-center justify-between rounded-xl bg-muted px-4 py-3 text-left text-sm font-semibold" @click="helperOpen = !helperOpen">
@@ -107,7 +116,7 @@ function remove() {
           </div>
         </div>
         <div class="flex items-center justify-between gap-3 rounded-xl bg-muted px-4 py-3">
-          <span class="text-sm text-muted">분할 상수</span>
+          <span class="text-sm text-muted">분할상수</span>
           <span class="text-xl font-bold tabular-nums">{{ sampleConstant === null ? '—' : Number(sampleConstant.toFixed(6)) }}</span>
         </div>
         <UButton label="이 값 쓰기" block size="lg" :disabled="sampleConstant === null" @click="useSample" />
@@ -115,11 +124,14 @@ function remove() {
     </UCard>
 
     <UCard>
-      <p class="mb-2 text-sm font-semibold text-muted">차동 상수 <span class="font-normal">(헬리컬만)</span></p>
-      <BigNumberInput v-model="draft.differentialConstant" placeholder="비워 둬도 돼요" size="md" />
-      <p class="mt-3 text-sm text-muted">
-        차동 기어비 = <b>차동 상수</b> × sinβ ÷ (모듈 × 호브 줄수)<br>
-        헬리컬 기어를 깎을 때만 필요해요. 설명서의 차동 변환기어 식에서 확인하세요.
+      <p class="mb-2 text-sm font-semibold text-muted">차동상수 <span class="font-normal">(헬리컬 기어만)</span></p>
+      <BigNumberInput v-model="draft.differentialConstant" placeholder="평기어만 깎으면 비워 두세요" size="md" />
+      <ul class="mt-3 space-y-1 text-sm text-muted">
+        <li>· 헬리컬 기어의 비틀림각을 만드는 차동 체인지기어를 구할 때만 써요.</li>
+        <li>· 이것도 <b>기계마다 정해진 값</b>이에요. 설명서의 차동 체인지기어 식에서 확인하세요.</li>
+      </ul>
+      <p class="mt-3 rounded-xl bg-muted px-4 py-2.5 text-xs text-muted tabular-nums">
+        차동 기어비 = 차동상수 × sin(비틀림각) ÷ (모듈 × 호브 줄수)
       </p>
     </UCard>
 

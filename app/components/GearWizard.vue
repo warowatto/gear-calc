@@ -69,7 +69,7 @@ watch(showTolerance, (on) => {
 })
 
 // ── 기계 ──
-// 분할 상수까지 넣은 기계만 고를 수 있다
+// 분할상수까지 넣은 기계만 고를 수 있다
 const hasMachines = computed(() => workshop.readyMachines.length > 0)
 if (!isMachineReady(machine.value)) {
   const first = workshop.readyMachines[0]
@@ -319,11 +319,11 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
             <!-- 기계 -->
             <template v-else-if="step.key === 'machine'">
               <div v-if="!hasMachines" class="rounded-2xl bg-muted p-5">
-                <p class="font-semibold">{{ workshop.machines.length ? '분할 상수를 넣은 기계가 없어요' : '등록된 기계가 없어요' }}</p>
+                <p class="font-semibold">{{ workshop.machines.length ? '분할상수를 넣은 기계가 없어요' : '등록된 기계가 없어요' }}</p>
                 <p class="mt-1 text-sm text-muted">기계를 등록하면 변환기어도 함께 기록할 수 있어요. 지금은 건너뛰어도 돼요.</p>
                 <UButton
                   :to="workshop.machines[0] ? `/settings/machines/${workshop.machines[0].id}` : '/settings/machines/new'"
-                  :label="workshop.machines.length ? '분할 상수 넣으러 가기' : '기계 등록하러 가기'" variant="soft" class="mt-4"
+                  :label="workshop.machines.length ? '분할상수 넣으러 가기' : '기계 등록하러 가기'" variant="soft" class="mt-4"
                 />
               </div>
               <template v-else>
@@ -338,7 +338,7 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
                     >
                       <span>
                         <span class="block text-lg font-bold">{{ m.name || '이름 없음' }}</span>
-                        <span class="text-sm text-muted tabular-nums">분할 {{ m.indexConstant }}{{ isPositive(m.differentialConstant) ? ` · 차동 ${m.differentialConstant}` : '' }}</span>
+                        <span class="text-sm text-muted tabular-nums">분할상수 {{ m.indexConstant }}{{ isPositive(m.differentialConstant) ? ` · 차동상수 ${m.differentialConstant}` : '' }}</span>
                       </span>
                       <UIcon v-if="gear.hob.machineId === m.id" name="i-lucide-circle-check" class="size-6 text-primary" />
                     </button>
@@ -349,7 +349,7 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
                     >
                       <span>
                         <span class="block text-lg font-bold text-muted">{{ m.name || '이름 없음' }}</span>
-                        <span class="text-sm font-semibold text-error">분할 상수를 넣어야 쓸 수 있어요</span>
+                        <span class="text-sm font-semibold text-error">분할상수를 넣어야 쓸 수 있어요</span>
                       </span>
                       <UIcon name="i-lucide-chevron-right" class="size-5 text-dimmed" />
                     </NuxtLink>
@@ -378,10 +378,10 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
                   <span class="text-lg font-bold tabular-nums">{{ (step.key === 'index' ? indexTarget : diffTarget)?.toFixed(8) ?? '—' }}</span>
                 </div>
                 <p v-if="step.key === 'index'" class="text-right text-xs text-muted tabular-nums">
-                  분할 상수 {{ machine?.indexConstant }} × {{ gear.hob.starts }}줄 / {{ spec.teeth }}T
+                  분할상수 {{ machine?.indexConstant }} × {{ gear.hob.starts }}줄 / {{ spec.teeth }}T
                 </p>
                 <p v-else class="text-right text-xs text-muted tabular-nums">
-                  차동 상수 {{ machine?.differentialConstant }} × sin {{ formatAngle(spec.helixAngle) }} / ({{ fmt(spec.module) }} × {{ gear.hob.starts }}줄)
+                  차동상수 {{ machine?.differentialConstant }} × sin {{ formatAngle(spec.helixAngle) }} / ({{ fmt(spec.module) }} × {{ gear.hob.starts }}줄)
                 </p>
               </div>
 
@@ -417,8 +417,8 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
               <UAlert
                 v-if="step.key === 'diff' && !isPositive(machine?.differentialConstant)"
                 color="warning" variant="subtle" icon="i-lucide-triangle-alert"
-                title="이 기계에 차동 상수가 없어요"
-                description="헬리컬 기어의 차동 기어를 찾으려면 기계 설정에서 차동 상수를 넣어 주세요."
+                title="이 기계에 차동상수가 없어요"
+                description="헬리컬 기어의 차동 기어를 찾으려면 기계 설정에서 차동상수를 넣어 주세요."
                 :actions="[{ label: '기계 설정', to: `/settings/machines/${machine?.id}`, color: 'warning', variant: 'solid' }]"
               />
               <!-- 조합 목록. 다시 찾는 중이면 흐리게 + 로딩 -->
