@@ -129,32 +129,35 @@ function back() {
   else router.back()
 }
 
-// 등록·수정을 시작한 브라우저 기록 위치와 그 앞 화면. 끝낼 때 단계 기록을 정확히 그만큼 걷어내는 데 쓴다.
-// (vue-router가 history.state 에 position 과 back 을 적어 둔다. 새로고침해도 남도록 sessionStorage 에 둔다)
+// 등록·수정을 시작할 때 앞 화면(목록·상세)이 앱 안에 있었는지 기억해 둔다. 끝낼 때 단계 기록을 걷어낼지 정하는 데 쓴다.
+// 새로고침이나 GitHub Pages의 주소 끝 / 리다이렉트로 브라우저 기록 정보가 바뀌어도 처음 값을 유지하도록
+// 같은 기어(초안 id)면 덮어쓰지 않는다
 const entryKey = `gear-calc:wizard-entry:${props.mode}`
 onMounted(() => {
-  if (route.query.step) return
   try {
-    sessionStorage.setItem(entryKey, JSON.stringify({ position: window.history.state?.position, back: window.history.state?.back ?? null }))
+    const saved = JSON.parse(sessionStorage.getItem(entryKey) ?? 'null')
+    if (saved?.gearId === props.gear.id) return
+    sessionStorage.setItem(entryKey, JSON.stringify({ gearId: props.gear.id, fromApp: !!window.history.state?.back }))
   }
   catch {}
 })
 
 /** 쌓인 단계 기록을 걷어내고 목적지로 간다 (뒤로가기로 단계 화면이 다시 나오지 않게) */
 async function leave(to: string) {
-  let entry: { position?: number, back?: string | null } = {}
+  let fromApp = false
   try {
-    entry = JSON.parse(sessionStorage.getItem(entryKey) ?? '{}')
+    const saved = JSON.parse(sessionStorage.getItem(entryKey) ?? 'null')
+    fromApp = saved?.gearId === props.gear.id && saved.fromApp
     sessionStorage.removeItem(entryKey)
   }
   catch {}
-  const position = Number(window.history.state?.position)
-  // 앞 화면(목록·상세)이 앱 안에 있을 때만 되돌린다. 주소로 바로 들어왔으면 back 이 없다
-  const delta = entry.back && Number.isFinite(entry.position) && position >= entry.position!
-    ? position - entry.position! + 1
-    : 0
+  // 단계마다 기록이 하나씩 쌓이므로 (지금 단계 번호 + 1)칸 되돌리면 진입 화면이다
+  const delta = fromApp ? stepIndex.value + 1 : 0
 
   if (delta > 0) {
+    // 등록 중에 새로고침했다면 되돌아간 화면은 브라우저가 처음부터 다시 불러온다. 그러면 이 코드가 사라지므로
+    // 갈 곳을 적어 두고, 앱이 다시 뜰 때 plugins/resume-navigation 이 이어서 이동한다
+    setPendingNavigation(to)
     // 되돌리기가 끝날 때까지 기다린다. 이 화면은 그사이 사라지므로 화면이 아닌 라우터 전체의 이동 완료(afterEach)를 쓴다.
     // 목록 화면 코드를 네트워크로 받느라 몇 초 걸릴 수 있어서, 브라우저 기록이 실제로 움직였으면(popstate) 끝까지 기다린다.
     await new Promise<void>((resolve) => {
@@ -182,6 +185,7 @@ async function leave(to: string) {
   // 진입 화면으로 돌아왔으니 목적지가 다르면 그 위에 쌓고, 진입 화면이 없으면 지금 기록을 바꾼다
   // (GitHub Pages는 주소 끝에 / 를 붙이기도 해서 떼고 비교)
   const same = (x: string) => x.replace(/(.)\/+(\?|$)/, '$1$2')
+  clearPendingNavigation()
   if (same(router.currentRoute.value.fullPath) !== same(to)) await (delta > 0 ? router.push(to) : router.replace(to))
 }
 
