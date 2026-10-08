@@ -34,4 +34,6 @@ input, textarea, select {
 
 html {
   -webkit-tap-highlight-color: transparent;
+  /* 더블탭 확대를 막는다 (탭 반응도 빨라짐). 두 손가락 확대(핀치 줌)는 접근성을 위해 그대로 둔다 */
+  touch-action: manipulation;
 }
