@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { comboFromSet } from '~/utils/changeGears'
 // 기계 등록(/settings/machines/new)·수정. 저장을 눌러야 반영된다
 const route = useRoute()
 const router = useRouter()
@@ -8,10 +9,32 @@ const gears = useGearsStore()
 const isNew = route.params.id === 'new'
 const original = isNew ? undefined : workshop.machineById(String(route.params.id))
 const draft = reactive<Machine>(original ? { ...original } : newMachine())
+// 기본 분할 기어 입력칸 (비어 있으면 NaN). 저장할 때 스키마가 null / {a,b} / {a,b,c,d} 로 정리한다
+const dflt = reactive({
+  a: original?.defaultIndex?.a ?? NaN,
+  b: original?.defaultIndex?.b ?? NaN,
+  c: original?.defaultIndex?.c ?? NaN,
+  d: original?.defaultIndex?.d ?? NaN,
+})
 
 // 입력 검사는 zod 스키마 (문구도 스키마에 있다)
-const parsed = computed(() => machineInputSchema.safeParse(draft))
-const problems = computed(() => formProblems(machineInputSchema, draft))
+const formValue = computed(() => ({ ...draft, defaultIndex: { ...dflt } }))
+const parsed = computed(() => machineInputSchema.safeParse(formValue.value))
+const problems = computed(() => formProblems(machineInputSchema, formValue.value))
+
+// 기본 분할 기어로 깎을 수 있는 잇수 (호브 1~3줄): 잇수 = 분할상수 × 줄수 ÷ 기어비
+const defaultSet = computed(() => gearSetInputSchema.safeParse({ ...dflt }).data ?? null)
+const defaultFits = computed(() => {
+  if (!defaultSet.value || !isPositive(draft.indexConstant)) return null
+  const ratio = comboFromSet(defaultSet.value, null).ratio
+  return [1, 2, 3]
+    .map(starts => ({ starts, teeth: (draft.indexConstant * starts) / ratio }))
+    .filter(f => Math.abs(f.teeth - Math.round(f.teeth)) < 1e-6)
+    .map(f => `${f.starts}줄 호브로 ${Math.round(f.teeth)}T`)
+})
+function clearDefault() {
+  Object.assign(dflt, { a: NaN, b: NaN, c: NaN, d: NaN })
+}
 // 처음부터 빨간 문구를 띄우지 않고, 저장을 눌렀을 때 막힌 이유를 보여준다
 const showProblems = ref(false)
 // 분할상수는 보통 1보다 크다. 작으면 기어비를 잘못 넣었을 가능성이 있어 알려준다 (저장은 막지 않음)
@@ -124,6 +147,29 @@ function remove() {
           <span class="text-xl font-bold tabular-nums">{{ sampleConstant === null ? '—' : Number(sampleConstant.toFixed(6)) }}</span>
         </div>
         <UButton label="이 값 쓰기" block size="lg" :disabled="sampleConstant === null" @click="useSample" />
+      </div>
+    </UCard>
+
+    <!-- 기본 분할 기어 (선택) -->
+    <UCard>
+      <div class="mb-2 flex items-center justify-between">
+        <p class="text-sm font-semibold text-muted">기본 분할 기어 <span class="font-normal">(선택)</span></p>
+        <UButton v-if="defaultSet" label="비우기" color="neutral" variant="link" size="sm" class="px-0" @click="clearDefault" />
+      </div>
+      <p class="text-sm text-muted">자주 쓰는 분할 기어 조합을 넣어 두면, 기어를 등록할 때 잇수가 맞으면 자동으로 골라 둬요.</p>
+      <div class="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 gap-y-2">
+        <BigNumberInput v-model="dflt.a" placeholder="A" size="md" />
+        <span class="row-span-2 text-xl text-muted">×</span>
+        <BigNumberInput v-model="dflt.c" placeholder="C" size="md" />
+        <BigNumberInput v-model="dflt.b" placeholder="B" size="md" />
+        <BigNumberInput v-model="dflt.d" placeholder="D" size="md" />
+      </div>
+      <p class="mt-2 text-xs text-muted">1단 조합이면 C·D는 비워 두세요.</p>
+      <div v-if="defaultSet" class="mt-3 rounded-xl bg-muted px-4 py-3 text-sm">
+        <p class="tabular-nums">기어비 <b>{{ comboFromSet(defaultSet, null).ratio.toFixed(6) }}</b></p>
+        <p v-if="defaultFits === null" class="mt-1 text-muted">분할상수를 넣으면 맞는 잇수를 알려드려요.</p>
+        <p v-else-if="defaultFits.length" class="mt-1 font-semibold text-primary">{{ defaultFits.join(' · ') }} 기어에 맞아요</p>
+        <p v-else class="mt-1 font-semibold text-warning">분할상수 {{ draft.indexConstant }}로는 잇수가 딱 맞지 않아요. 조합을 확인해 주세요.</p>
       </div>
     </UCard>
 

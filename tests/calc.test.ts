@@ -160,3 +160,24 @@ describe('변환기어 일부만 빼기', () => {
     expect(usableCount(40, 1, [40, 40])).toBe(0)
   })
 })
+
+describe('기본 조합의 기어비', () => {
+  it('목표에 맞으면 오차 0, 아니면 오차', async () => {
+    const { comboFromSet } = await import('../app/utils/changeGears')
+    expect(comboFromSet({ a: 30, b: 20, c: 24, d: 45 }, 0.8)).toMatchObject({ ratio: 0.8, error: 0 })
+    expect(comboFromSet({ a: 30, b: 20 }, 1.5).error).toBe(0)
+    expect(comboFromSet({ a: 30, b: 20, c: 24, d: 45 }, 24 / 31).error).toBeCloseTo(31 / 30 - 1, 12)
+  })
+})
+
+describe('기본 분할 기어와 같은지', () => {
+  it('같은 조합만 true (1단·2단)', async () => {
+    const { isDefaultIndex } = await import('../app/utils/changeGears')
+    const combo = { a: 30, b: 20, c: 24, d: 45, ratio: 0.8, error: 0 }
+    expect(isDefaultIndex(combo, { a: 30, b: 20, c: 24, d: 45 })).toBe(true)
+    expect(isDefaultIndex(combo, { a: 24, b: 20, c: 30, d: 45 })).toBe(false)
+    expect(isDefaultIndex({ a: 30, b: 20, ratio: 1.5, error: 0 }, { a: 30, b: 20 })).toBe(true)
+    expect(isDefaultIndex(null, { a: 30, b: 20 })).toBe(false)
+    expect(isDefaultIndex(combo, null)).toBe(false)
+  })
+})

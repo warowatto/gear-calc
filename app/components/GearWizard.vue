@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { calcSpan, spanForTeeth } from '~/utils/spanMeasurement'
+import { comboFromSet, isExact, sameCombo } from '~/utils/changeGears'
 
 // 토스식 단계별 기어 등록/수정. 단계는 ?step= 에 두어서 휴대폰 뒤로가기로 이전 단계로 돌아간다
 const props = defineProps<{
@@ -91,6 +92,21 @@ interface Step {
 
 const sizeLabel = computed(() => gear.value.spec.unit === 'dp' ? 'DP' : '모듈')
 
+// ── 기본 분할 기어: 기계에 저장한 조합. 이번 잇수에 정확히 맞으면 자동으로 고른다 ──
+const defaultIndexCombo = computed(() => {
+  const set = machine.value?.defaultIndex
+  return set ? comboFromSet(set, indexTarget.value) : null
+})
+const defaultIndexExact = computed(() => !!defaultIndexCombo.value && isExact(defaultIndexCombo.value))
+// 기본 조합이 맞으면 다른 조합 목록·빼기는 접어 두고, "다른 조합 고르기"로 펼친다
+const showOtherIndex = ref(false)
+const indexCollapsed = computed(() => defaultIndexExact.value && !showOtherIndex.value)
+const usingDefaultIndex = computed(() =>
+  !!gear.value.hob.index && !!defaultIndexCombo.value && sameCombo(gear.value.hob.index, defaultIndexCombo.value))
+function useDefaultIndex() {
+  if (defaultIndexCombo.value) gear.value.hob.index = { ...defaultIndexCombo.value }
+}
+
 // "다음"이 막힐 때 무엇이 문제인지 보여준다
 const withProblems = (problems: string[]) => ({ valid: problems.length === 0, problems })
 const sizeProblems = computed(() => formProblems(sizeInputSchema, gear.value.spec))
@@ -111,7 +127,12 @@ const steps = computed<Step[]>(() => {
     { key: 'machine', title: '어떤 기계로 가공하나요?', valid: !hasMachines.value || (isMachineReady(machine.value) && isPositive(gear.value.hob.starts)), cta: hasMachines.value ? undefined : '건너뛰기' },
   ]
   if (isMachineReady(machine.value)) {
-    list.push({ key: 'index', title: '분할 기어를 골라주세요', valid: true, cta: gear.value.hob.index ? undefined : '고르지 않고 넘어가기' })
+    const indexAsk = !defaultIndexCombo.value
+      ? { title: '분할 기어를 골라주세요' }
+      : defaultIndexExact.value
+        ? { title: '이 분할 기어로\n셋팅하면 돼요', description: '기계에 저장한 기본 조합이 이 잇수에 맞아요.' }
+        : { title: '기본 조합이\n이 잇수엔 안 맞아요', description: '아래에서 맞는 분할 기어를 골라 주세요.' }
+    list.push({ key: 'index', ...indexAsk, valid: true, cta: gear.value.hob.index ? undefined : '고르지 않고 넘어가기' })
     if (helical.value) {
       list.push({ key: 'diff', title: '차동 기어를 골라주세요', valid: true, cta: gear.value.hob.diff ? undefined : '고르지 않고 넘어가기' })
     }
@@ -121,6 +142,11 @@ const steps = computed<Step[]>(() => {
 
 const stepIndex = computed(() => Math.max(0, steps.value.findIndex(s => s.key === route.query.step)))
 const step = computed(() => steps.value[stepIndex.value]!)
+
+// 분할 단계에 들어오면(또는 목표 기어비가 바뀌면) 아직 고른 조합이 없을 때만 기본 조합을 골라 둔다
+watch([() => step.value.key, defaultIndexCombo], () => {
+  if (step.value.key === 'index' && !gear.value.hob.index && defaultIndexExact.value) useDefaultIndex()
+}, { immediate: true })
 const progress = computed(() => ((stepIndex.value + 1) / steps.value.length) * 100)
 const isLast = computed(() => stepIndex.value === steps.value.length - 1)
 
@@ -388,7 +414,7 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
                 </p>
               </div>
 
-              <div>
+              <div v-if="!(step.key === 'index' && indexCollapsed)">
                 <button type="button" class="flex w-full items-center justify-between py-1 text-sm font-semibold" @click="gearsOpen = !gearsOpen">
                   사용 변환기어 {{ usableKinds }}/{{ workshop.gears.length }}종
                   <span class="flex items-center gap-1 font-normal text-muted">
@@ -424,8 +450,44 @@ const startsChips = [1, 2, 3].map(v => ({ label: `${v}줄`, value: v }))
                 description="헬리컬 기어의 차동 기어를 찾으려면 기계 설정에서 차동상수를 넣어 주세요."
                 :actions="[{ label: '기계 설정', to: `/settings/machines/${machine?.id}`, color: 'warning', variant: 'solid' }]"
               />
-              <!-- 조합 목록. 다시 찾는 중이면 흐리게 + 로딩 -->
-              <div class="relative min-h-40">
+              <!-- 기본 분할 기어 (기계 설정에 저장한 조합) -->
+              <template v-if="step.key === 'index' && defaultIndexCombo">
+                <!-- 맞음: 이 조합을 크게 보여주고 이미 골라 둔다 -->
+                <div v-if="defaultIndexExact" class="rounded-2xl border-2 p-5" :class="usingDefaultIndex ? 'border-primary bg-primary/5' : 'border-default'">
+                  <div class="flex items-center justify-between gap-2">
+                    <p class="font-bold">기본 분할 기어</p>
+                    <UBadge label="이 잇수에 맞아요" color="success" variant="subtle" />
+                  </div>
+                  <div class="mt-3 flex items-center justify-between gap-3">
+                    <GearComboFraction :combo="defaultIndexCombo" class="text-4xl" />
+                    <div class="text-right tabular-nums">
+                      <p class="text-xl font-bold text-success">{{ errorPercent(defaultIndexCombo) }}</p>
+                      <p class="text-xs text-muted">기어비 {{ defaultIndexCombo.ratio.toFixed(8) }}</p>
+                    </div>
+                  </div>
+                  <p v-if="usingDefaultIndex" class="mt-3 flex items-center gap-1.5 text-sm font-semibold text-primary">
+                    <UIcon name="i-lucide-circle-check" class="size-4" />이 조합으로 기록해요
+                  </p>
+                  <UButton v-else label="기본 조합으로 돌아가기" variant="soft" block class="mt-3" @click="useDefaultIndex" />
+                </div>
+                <UButton
+                  v-if="defaultIndexExact"
+                  :label="showOtherIndex ? '다른 조합 접기' : '다른 조합 고르기'"
+                  :trailing-icon="showOtherIndex ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                  color="neutral" variant="ghost" block @click="showOtherIndex = !showOtherIndex"
+                />
+
+                <!-- 안 맞음: 한 줄로 알려주고 목록을 위로 -->
+                <div v-else class="flex items-center justify-between gap-3 rounded-xl border border-dashed border-default px-4 py-3">
+                  <span class="flex items-center gap-2 text-sm text-muted">
+                    기본 <GearComboFraction :combo="defaultIndexCombo" class="text-sm text-toned" />
+                  </span>
+                  <span class="text-sm font-bold tabular-nums text-warning">오차 {{ errorPercent(defaultIndexCombo) }}</span>
+                </div>
+              </template>
+
+              <!-- 조합 목록. 다시 찾는 중이면 흐리게 + 로딩 (기본 조합이 맞으면 접어 둠) -->
+              <div v-if="!(step.key === 'index' && indexCollapsed)" class="relative min-h-40">
                 <div v-if="showLoading" class="absolute inset-x-0 top-6 z-10 flex flex-col items-center gap-3">
                   <UIcon name="i-lucide-loader-circle" class="size-9 animate-spin text-primary" />
                   <p class="text-sm font-semibold text-muted">맞는 조합을 찾는 중이에요</p>

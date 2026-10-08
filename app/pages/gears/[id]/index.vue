@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { helixFromDifferential } from '~/utils/changeGears'
+import { helixFromDifferential, isDefaultIndex } from '~/utils/changeGears'
 
 const route = useRoute()
 const id = route.params.id as string
@@ -8,6 +8,8 @@ const workshop = useWorkshopStore()
 const gear = computed(() => gears.byId(id))
 const machine = computed(() => gear.value && workshop.machineById(gear.value.hob.machineId))
 const span = computed(() => gear.value && gearSpan(gear.value))
+// 분할 기어가 기계의 기본 조합과 같으면 따로 크게 보여주지 않는다
+const indexIsDefault = computed(() => isDefaultIndex(gear.value?.hob.index, machine.value?.defaultIndex))
 const spec = computed(() => gear.value && toCalcSpec(gear.value.spec))
 const isDp = computed(() => gear.value?.spec.unit === 'dp')
 
@@ -118,7 +120,10 @@ function remove() {
         <span v-if="machine" class="shrink-0 rounded-lg bg-elevated px-2.5 py-1 text-base font-semibold text-toned">호브 {{ gear.hob.starts }}줄</span>
       </div>
 
-      <div v-if="gear.hob.index" class="mt-4">
+      <p v-if="indexIsDefault" class="mt-4 flex items-center gap-1.5 text-base text-muted">
+        <UIcon name="i-lucide-circle-check" class="size-5 text-success" />분할 기어는 기본 조합을 써요
+      </p>
+      <div v-if="gear.hob.index && !indexIsDefault" class="mt-4">
         <p class="text-lg font-bold text-toned">분할 기어</p>
         <div class="mt-1 flex items-center justify-between gap-3">
           <GearComboFraction :combo="gear.hob.index" class="text-4xl" />
@@ -130,7 +135,7 @@ function remove() {
         </div>
       </div>
 
-      <div v-if="gear.hob.diff" class="mt-5 border-t border-default pt-4">
+      <div v-if="gear.hob.diff" class="mt-5 pt-4" :class="gear.hob.index && !indexIsDefault && 'border-t border-default'">
         <p class="text-lg font-bold text-toned">차동 기어</p>
         <div class="mt-1 flex items-center justify-between gap-3">
           <GearComboFraction :combo="gear.hob.diff" class="text-4xl" />

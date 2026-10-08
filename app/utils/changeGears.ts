@@ -173,3 +173,14 @@ export function toggleExcluded(excluded: number[], teeth: number, qty: number) {
     ? [...excluded, teeth]
     : excluded.filter(t => t !== teeth)
 }
+
+/** 조합 A/B (× C/D) 의 기어비와, 목표 기어비에 대한 오차 */
+export function comboFromSet(set: { a: number, b: number, c?: number, d?: number }, target: number | null): GearCombo {
+  const ratio = (set.a / set.b) * (set.c && set.d ? set.c / set.d : 1)
+  return { ...set, ratio, error: target ? ratio / target - 1 : NaN }
+}
+
+/** 고른 분할 기어가 그 기계의 기본 조합과 같은지 (같으면 목록·상세에서 따로 보여주지 않는다) */
+export function isDefaultIndex(index: GearCombo | null | undefined, defaultSet: { a: number, b: number, c?: number, d?: number } | null | undefined) {
+  return !!index && !!defaultSet && sameCombo(index, comboFromSet(defaultSet, null))
+}

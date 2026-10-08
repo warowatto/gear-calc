@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { isDefaultIndex } from '~/utils/changeGears'
 // 목록 카드: 어떤 기계로 · 어떤 기어를 · 어떤 변환기어로 · 걸치기 잇수/치수/허용 구간
 const props = defineProps<{ gear: GearRecord, /** 검색어 (강조 표시) */ highlight?: string[] }>()
 const emit = defineEmits<{ delete: [] }>()
 
 const workshop = useWorkshopStore()
 const machine = computed(() => workshop.machineById(props.gear.hob.machineId))
+// 분할 기어가 기계의 기본 조합과 같으면 분수를 따로 보여주지 않는다
+const indexIsDefault = computed(() => isDefaultIndex(props.gear.hob.index, machine.value?.defaultIndex))
 const span = computed(() => gearSpan(props.gear))
 const summary = computed(() => specSummary(props.gear.spec))
 </script>
@@ -48,7 +51,7 @@ const summary = computed(() => specSummary(props.gear.spec))
         </div>
 
         <div class="flex flex-col justify-center gap-3 rounded-xl bg-muted px-3 py-3">
-          <div v-if="gear.hob.index">
+          <div v-if="gear.hob.index && !indexIsDefault">
             <p class="text-xs text-muted">분할</p>
             <div class="mt-1 flex justify-center">
               <GearComboFraction :combo="gear.hob.index" class="text-xl" />
@@ -60,6 +63,7 @@ const summary = computed(() => specSummary(props.gear.spec))
               <GearComboFraction :combo="gear.hob.diff" class="text-xl" />
             </div>
           </div>
+          <p v-if="indexIsDefault" class="text-center text-xs text-muted">분할 기본 조합</p>
           <template v-if="!gear.hob.index && !gear.hob.diff">
             <p class="text-xs text-muted">변환기어</p>
             <p class="text-center text-sm text-dimmed">{{ machine ? '고르지 않았어요' : '기계 없음' }}</p>

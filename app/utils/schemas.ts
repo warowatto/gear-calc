@@ -44,6 +44,26 @@ export const spanInputSchema = z.object({
 
 // ── 기계 설정 입력 ──
 
+// ── 기본 분할 기어 (A/B × C/D, 선택) ──
+const blank = (v: unknown) => v == null || (typeof v === 'number' && Number.isNaN(v))
+const isTeeth = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0
+
+/** 네 칸 모두 비우면 null. A·B는 자연수, C·D는 둘 다 넣거나 둘 다 비운다 */
+export const gearSetInputSchema = z.object({ a: z.unknown(), b: z.unknown(), c: z.unknown(), d: z.unknown() })
+  .partial()
+  .nullish()
+  .superRefine((g, ctx) => {
+    if (!g || [g.a, g.b, g.c, g.d].every(blank)) return
+    if (!isTeeth(g.a) || !isTeeth(g.b)) ctx.addIssue({ code: 'custom', message: '기본 분할 기어는 A와 B 잇수를 넣어 주세요' })
+    const cBlank = blank(g.c) && blank(g.d)
+    if (!cBlank && !(isTeeth(g.c) && isTeeth(g.d))) ctx.addIssue({ code: 'custom', message: '기본 분할 기어의 C와 D는 둘 다 넣거나 둘 다 비워 주세요' })
+  })
+  .transform((g): { a: number, b: number, c?: number, d?: number } | null => {
+    if (!g || [g.a, g.b, g.c, g.d].every(blank)) return null
+    const set = { a: g.a as number, b: g.b as number }
+    return isTeeth(g.c) && isTeeth(g.d) ? { ...set, c: g.c, d: g.d } : set
+  })
+
 export const machineInputSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1, '기계 이름을 넣어 주세요'),
@@ -52,6 +72,7 @@ export const machineInputSchema = z.object({
   twoStage: z.boolean(),
   useClearance: z.boolean(),
   clearance: optionalNum('여유 잇수는 0 이상이에요', v => v >= 0),
+  defaultIndex: gearSetInputSchema,
 }).superRefine((m, ctx) => {
   if (m.useClearance && Number.isNaN(m.clearance)) {
     ctx.addIssue({ code: 'custom', path: ['clearance'], message: '간섭 조건을 쓰려면 여유 잇수를 넣어 주세요' })
@@ -109,6 +130,7 @@ export const storedMachineSchema = z.object({
   twoStage: z.boolean().catch(true),
   useClearance: z.boolean().catch(false),
   clearance: storedNum.catch(NaN),
+  defaultIndex: gearSetInputSchema.catch(null),
 })
 
 export const ownedGearSchema = z.object({

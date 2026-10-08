@@ -14,7 +14,8 @@ describe('백업', () => {
     const data = { gears: [gear('a', 1)], workshop: { machines: [machine('default', 'P400')], gears: [{ teeth: 20, qty: 2 }] } }
     const back = parseBackup(JSON.stringify(buildBackup(data)))
     expect(back.gears).toEqual(data.gears)
-    expect(back.workshop).toEqual(data.workshop)
+    // 기본 분할 기어가 없던 기계는 null 로 채워진다
+    expect(back.workshop).toEqual({ ...data.workshop, machines: data.workshop.machines.map(m => ({ ...m, defaultIndex: null })) })
     expect(back.skipped).toBe(0)
   })
 

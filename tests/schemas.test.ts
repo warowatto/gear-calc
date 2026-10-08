@@ -84,3 +84,21 @@ describe('백업 파일: 빈칸이 null 로 저장된 기록', () => {
     expect(Number.isNaN(r.workshop.machines[0]!.differentialConstant)).toBe(true)
   })
 })
+
+describe('기본 분할 기어', () => {
+  const m = { id: 'm1', name: 'P400', indexConstant: 24, differentialConstant: NaN, twoStage: true, useClearance: false, clearance: NaN }
+  const parse = (defaultIndex: unknown) => machineInputSchema.safeParse({ ...m, defaultIndex })
+  it('비우면 없음(null)', () => {
+    expect(parse({ a: NaN, b: NaN, c: NaN, d: NaN }).data!.defaultIndex).toBeNull()
+    expect(parse(undefined).data!.defaultIndex).toBeNull()
+  })
+  it('1단·2단 조합', () => {
+    expect(parse({ a: 30, b: 20, c: NaN, d: NaN }).data!.defaultIndex).toEqual({ a: 30, b: 20 })
+    expect(parse({ a: 30, b: 20, c: 24, d: 45 }).data!.defaultIndex).toEqual({ a: 30, b: 20, c: 24, d: 45 })
+  })
+  it('빠지거나 반만 넣으면 문구', () => {
+    expect(formProblems(machineInputSchema, { ...m, defaultIndex: { a: 30, b: NaN, c: NaN, d: NaN } })).toEqual(['기본 분할 기어는 A와 B 잇수를 넣어 주세요'])
+    expect(formProblems(machineInputSchema, { ...m, defaultIndex: { a: 30, b: 20, c: 24, d: NaN } })).toEqual(['기본 분할 기어의 C와 D는 둘 다 넣거나 둘 다 비워 주세요'])
+    expect(formProblems(machineInputSchema, { ...m, defaultIndex: { a: 30.5, b: 20, c: NaN, d: NaN } })).toEqual(['기본 분할 기어는 A와 B 잇수를 넣어 주세요'])
+  })
+})

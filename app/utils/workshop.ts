@@ -15,6 +15,16 @@ export interface Machine {
   useClearance: boolean
   /** 간섭 조건 여유 잇수 */
   clearance: number
+  /** 기본 분할 기어 (자주 쓰는 조합). 없으면 null. 1단이면 c·d 없음 */
+  defaultIndex?: GearSet | null
+}
+
+/** 체인지기어 조합 A/B (× C/D) */
+export interface GearSet {
+  a: number
+  b: number
+  c?: number
+  d?: number
 }
 
 export interface OwnedGear {
@@ -37,6 +47,7 @@ export const newMachine = (): Machine => ({
   twoStage: true,
   useClearance: false,
   clearance: NaN,
+  defaultIndex: null,
 })
 
 /** 분할상수가 있어야 변환기어를 계산할 수 있다 (차동상수는 헬리컬일 때만 필요) */
