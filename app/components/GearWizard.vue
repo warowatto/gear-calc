@@ -155,15 +155,27 @@ async function leave(to: string) {
     : 0
 
   if (delta > 0) {
-    // 되돌리기가 끝날 때까지 기다린다. 이 화면은 그사이 사라지므로 화면이 아닌 라우터 전체의 이동 완료 신호를 쓴다
+    // 되돌리기가 끝날 때까지 기다린다. 이 화면은 그사이 사라지므로 화면이 아닌 라우터 전체의 이동 완료(afterEach)를 쓴다.
+    // 목록 화면 코드를 네트워크로 받느라 몇 초 걸릴 수 있어서, 브라우저 기록이 실제로 움직였으면(popstate) 끝까지 기다린다.
     await new Promise<void>((resolve) => {
-      const done = () => {
+      let moved = false
+      const onPop = () => {
+        moved = true
+      }
+      const finish = () => {
         off()
-        clearTimeout(timer)
+        window.removeEventListener('popstate', onPop)
+        clearTimeout(noMove)
+        clearTimeout(giveUp)
         resolve()
       }
-      const off = router.afterEach(done)
-      const timer = setTimeout(done, 3000) // 이동이 아예 일어나지 않는 예외 상황용
+      const off = router.afterEach(finish)
+      window.addEventListener('popstate', onPop)
+      // 기록이 움직이지 않으면(예외 상황) 1초 뒤 그냥 진행, 움직였으면 이동이 끝날 때까지 (최대 15초)
+      const noMove = setTimeout(() => {
+        if (!moved) finish()
+      }, 1000)
+      const giveUp = setTimeout(finish, 15000)
       router.go(-delta)
     })
   }
