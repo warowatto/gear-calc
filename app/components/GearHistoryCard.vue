@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 목록 카드: 어떤 기계로 · 어떤 기어를 · 어떤 변환기어로 · 걸치기 잇수/치수/허용 구간
-const props = defineProps<{ gear: GearRecord }>()
+const props = defineProps<{ gear: GearRecord, /** 검색어 (강조 표시) */ highlight?: string[] }>()
 const emit = defineEmits<{ delete: [] }>()
 
 const workshop = useWorkshopStore()
@@ -20,7 +20,7 @@ const summary = computed(() => specSummary(props.gear.spec))
           :class="machine ? 'bg-primary/10 text-primary' : 'bg-elevated text-muted'"
         >
           <UIcon name="i-lucide-factory" class="size-4 shrink-0" />
-          <span class="truncate">{{ machine?.name || '기계 없음' }}</span>
+          <HighlightText class="truncate" :text="machine?.name || '기계 없음'" :tokens="machine ? highlight : undefined" />
         </span>
         <span v-if="machine" class="shrink-0 text-sm font-medium text-muted">호브 {{ gear.hob.starts }}줄</span>
         <span class="ml-auto shrink-0 pr-8 text-xs text-muted">{{ formatDate(gear.updatedAt) }}</span>
@@ -28,8 +28,12 @@ const summary = computed(() => specSummary(props.gear.spec))
 
       <!-- 어떤 기어 -->
       <div class="min-w-0">
-        <p class="truncate text-lg font-bold text-highlighted">{{ gear.name || summary }}</p>
-        <p class="text-sm text-muted tabular-nums">{{ gear.name ? summary : '' }}{{ gear.name && gear.memo ? ' · ' : '' }}{{ gear.memo }}</p>
+        <p class="truncate text-lg font-bold text-highlighted"><HighlightText :text="gear.name || summary" :tokens="highlight" /></p>
+        <p class="text-sm text-muted tabular-nums">
+          <HighlightText v-if="gear.name" :text="summary" :tokens="highlight" />
+          <template v-if="gear.name && gear.memo"> · </template>
+          <HighlightText v-if="gear.memo" :text="gear.memo" :tokens="highlight" />
+        </p>
       </div>
 
       <!-- 왼쪽 걸치기, 오른쪽 변환기어 조합 -->

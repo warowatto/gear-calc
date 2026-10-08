@@ -23,10 +23,14 @@ const setupSteps = computed(() => [
 const setupDone = computed(() => setupSteps.value.every(s => s.done))
 const query = ref('')
 
+// 검색: 띄어 쓴 단어마다 이름·메모·제원·기계 이름 중 어딘가에 있어야 한다 (한글 초성·띄어쓰기 무시 지원)
+const tokens = computed(() => tokenize(query.value))
 const items = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  return gears.recent
-    .filter(g => !q || [g.name, g.memo, specSummary(g.spec)].some(t => t.toLowerCase().includes(q)))
+  if (!tokens.value.length) return gears.recent
+  return gears.recent.filter(g => matchesQuery(
+    [g.name, g.memo, specSummary(g.spec), workshop.machineById(g.hob.machineId)?.name ?? ''],
+    tokens.value,
+  ))
 })
 
 // 카드의 삭제 버튼 → 확인창 → 삭제
@@ -58,7 +62,7 @@ function addGear() {
       class="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 -mx-4 -mt-2 bg-[#f2f4f6] px-4 pt-2 pb-1"
     >
       <UInput
-        v-model="query" size="xl" icon="i-lucide-search" placeholder="이름, 메모, M2, 30T…"
+        v-model="query" size="xl" icon="i-lucide-search" placeholder="이름·메모·기계, M2 30T, ㅍㄴㅇ"
         class="w-full" :ui="{ base: 'rounded-xl bg-default ring-0' }"
       />
     </div>
@@ -115,7 +119,7 @@ function addGear() {
 
     <ul class="space-y-3">
       <li v-for="g in items" :key="g.id">
-        <GearHistoryCard :gear="g" @delete="deleting = g" />
+        <GearHistoryCard :gear="g" :highlight="tokens" @delete="deleting = g" />
       </li>
     </ul>
 
