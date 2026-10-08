@@ -1,38 +1,11 @@
 <script setup lang="ts">
-import { parseGearInput } from '~/utils/changeGears'
-
-const workshop = useWorkshop()
+const workshop = useWorkshopStore()
 const toast = useToast()
 const gearInput = ref('')
-const totalGears = computed(() => workshop.value.gears.reduce((n, g) => n + g.qty, 0))
 
-/**
- * "20, 24 30~40" 처럼 낱개·범위를 한 번에 추가.
- * 낱개는 이미 있으면 수량 +1 (같은 기어를 2개 가진 경우), 범위는 없는 잇수만 채운다.
- */
+/** "20, 24 30~40" 처럼 낱개·범위를 한 번에 추가하고 결과를 알려준다 */
 function addGears() {
-  const { singles, ranges, invalid } = parseGearInput(gearInput.value)
-  const list = workshop.value.gears
-  let added = 0
-  let increased = 0
-  for (const teeth of singles) {
-    const found = list.find(g => g.teeth === teeth)
-    if (found) {
-      found.qty++
-      increased++
-    }
-    else {
-      list.push({ teeth, qty: 1 })
-      added++
-    }
-  }
-  for (const teeth of ranges) {
-    if (!list.some(g => g.teeth === teeth)) {
-      list.push({ teeth, qty: 1 })
-      added++
-    }
-  }
-  list.sort((a, b) => a.teeth - b.teeth)
+  const { added, increased, invalid } = workshop.addGears(gearInput.value)
   gearInput.value = ''
 
   const parts = []
@@ -42,13 +15,9 @@ function addGears() {
   toast.add({ title: parts.join(' · ') || '새로 추가된 기어가 없어요', color: invalid ? 'warning' : 'success', duration: 2500 })
 }
 
-function removeGear(teeth: number) {
-  workshop.value.gears = workshop.value.gears.filter(g => g.teeth !== teeth)
-}
-
 const clearOpen = ref(false)
 function clearAll() {
-  workshop.value.gears = []
+  workshop.clearGears()
   clearOpen.value = false
 }
 </script>
@@ -70,7 +39,7 @@ function clearAll() {
 
     <UCard>
       <div class="mb-4 flex items-center justify-between">
-        <span class="font-semibold tabular-nums">{{ workshop.gears.length }}종 · {{ totalGears }}개</span>
+        <span class="font-semibold tabular-nums">{{ workshop.gears.length }}종 · {{ workshop.totalGears }}개</span>
         <span class="flex gap-1">
           <UButton label="모두 삭제" color="error" variant="soft" size="sm" :disabled="!workshop.gears.length" @click="clearOpen = true" />
         </span>
@@ -90,9 +59,9 @@ function clearAll() {
             <div class="w-48 space-y-3 p-3">
               <p class="font-semibold">{{ g.teeth }}T</p>
               <UFormField label="수량">
-                <UInputNumber v-model="g.qty" size="lg" :min="1" :max="20" class="w-full" />
+                <UInputNumber :model-value="g.qty" size="lg" @update:model-value="v => workshop.setGearQty(g.teeth, v ?? NaN)" :min="1" :max="20" class="w-full" />
               </UFormField>
-              <UButton label="삭제" color="error" variant="soft" icon="i-lucide-trash-2" block @click="removeGear(g.teeth)" />
+              <UButton label="삭제" color="error" variant="soft" icon="i-lucide-trash-2" block @click="workshop.removeGear(g.teeth)" />
             </div>
           </template>
         </UPopover>
@@ -101,7 +70,7 @@ function clearAll() {
       <p v-else class="mt-4 text-xs text-muted">기어를 누르면 수량을 바꾸거나 삭제할 수 있어요.</p>
     </UCard>
 
-    <UModal v-model:open="clearOpen" title="보유 변환기어를 모두 삭제할까요?" :description="`${workshop.gears.length}종 ${totalGears}개가 지워져요.`">
+    <UModal v-model:open="clearOpen" title="보유 변환기어를 모두 삭제할까요?" :description="`${workshop.gears.length}종 ${workshop.totalGears}개가 지워져요.`">
       <template #footer>
         <div class="grid w-full grid-cols-2 gap-2">
           <UButton label="취소" color="neutral" variant="soft" size="xl" block @click="clearOpen = false" />

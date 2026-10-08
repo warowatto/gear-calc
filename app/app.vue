@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const router = useRouter()
-const gears = useGears()
+const gears = useGearsStore()
 
 const tabs = [
   { label: '기어', to: '/', icon: 'i-lucide-cog', match: (p: string) => p === '/' || p.startsWith('/gears/') },
@@ -24,7 +24,7 @@ const showBack = computed(() => isDetail.value || path.value.startsWith('/settin
 // 상세 화면은 주소의 기어 제원(M10 · 30T)을 제목으로, 나머지는 탭 이름
 const title = computed(() => {
   if (isDetail.value) {
-    const gear = gears.value.list.find(g => g.id === route.params.id)
+    const gear = gears.byId(String(route.params.id))
     return gear ? specTitle(gear.spec) : ''
   }
   return subTitle.value ?? tabs.find(t => t.match(path.value))?.label ?? '기어 계산기'

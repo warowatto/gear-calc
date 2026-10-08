@@ -10,10 +10,10 @@ const props = defineProps<{
   options?: { label: string, value: number }[]
 }>()
 
-const prefs = useInputPrefs()
+const prefs = usePrefsStore()
 const dms = computed({
-  get: () => !!prefs.value.angleDms[props.prefKey],
-  set: (v) => { prefs.value.angleDms[props.prefKey] = v },
+  get: () => !!prefs.angleDms[props.prefKey],
+  set: v => prefs.setAngleDms(props.prefKey, v),
 })
 
 const parts = reactive(toDmsParts(model.value))

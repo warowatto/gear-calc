@@ -3,10 +3,10 @@ import { helixFromDifferential } from '~/utils/changeGears'
 
 const route = useRoute()
 const id = route.params.id as string
-const gears = useGears()
-const workshop = useWorkshop()
-const gear = computed(() => gears.value.list.find(g => g.id === id))
-const machine = computed(() => workshop.value.machines.find(m => m.id === gear.value?.hob.machineId))
+const gears = useGearsStore()
+const workshop = useWorkshopStore()
+const gear = computed(() => gears.byId(id))
+const machine = computed(() => gear.value && workshop.machineById(gear.value.hob.machineId))
 const span = computed(() => gear.value && gearSpan(gear.value))
 const spec = computed(() => gear.value && toCalcSpec(gear.value.spec))
 const isDp = computed(() => gear.value?.spec.unit === 'dp')
@@ -38,21 +38,26 @@ const excludedText = computed(() => {
   const counts = new Map<number, number>()
   for (const t of ex) counts.set(t, (counts.get(t) ?? 0) + 1)
   return [...counts].sort((a, b) => a[0] - b[0]).map(([t, n]) => {
-    const qty = workshop.value.gears.find(g => g.teeth === t)?.qty ?? 1
+    const qty = workshop.gears.find(g => g.teeth === t)?.qty ?? 1
     return qty > 1 ? `${t}×${n}` : `${t}`
   }).join(', ')
 })
 
-// 이름·메모를 고치면 수정 시각 갱신
-watch(() => gear.value && [gear.value.name, gear.value.memo], (now, before) => {
-  if (gear.value && before && now?.join() !== before.join()) gear.value.updatedAt = Date.now()
+// 이름·메모는 이 화면에서 바로 고친다 (수정 시각도 함께 갱신)
+const name = computed({
+  get: () => gear.value?.name ?? '',
+  set: v => gears.patch(id, { name: v }),
+})
+const memo = computed({
+  get: () => gear.value?.memo ?? '',
+  set: v => gears.patch(id, { memo: v }),
 })
 
 // 상단 오른쪽 아이콘: 수정 · 삭제 (삭제는 확인창을 거친다)
 const deleteOpen = ref(false)
 
 function remove() {
-  gears.value.list = gears.value.list.filter(g => g.id !== id)
+  gears.remove(id)
   navigateTo('/', { replace: true })
 }
 </script>
@@ -68,7 +73,7 @@ function remove() {
     <div class="px-1 pb-1">
       <label class="flex items-center gap-2">
         <input
-          v-model="gear.name" type="text" autocomplete="off" enterkeyhint="done"
+          v-model="name" type="text" autocomplete="off" enterkeyhint="done"
           placeholder="이름을 붙여보세요"
           class="min-w-0 flex-1 bg-transparent text-[26px]! leading-tight font-bold text-highlighted outline-none placeholder:text-dimmed"
           aria-label="기어 이름"
@@ -172,7 +177,7 @@ function remove() {
     <UCard>
       <label for="gear-memo" class="text-sm font-semibold text-muted">메모</label>
       <UTextarea
-        id="gear-memo" v-model="gear.memo" :rows="3" autoresize size="xl" variant="soft"
+        id="gear-memo" v-model="memo" :rows="3" autoresize size="xl" variant="soft"
         placeholder="도번, 고객, 소재 등을 적어두세요"
         class="mt-3 w-full" :ui="{ base: 'rounded-xl bg-muted px-4 py-3 placeholder:text-dimmed' }"
       />

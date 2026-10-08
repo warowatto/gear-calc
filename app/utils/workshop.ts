@@ -1,3 +1,7 @@
+// 기계·보유 변환기어의 모양 (상태는 stores/workshop.ts)
+import { isPositive } from './format'
+import { newId } from './gearRecord'
+
 export interface Machine {
   id: string
   name: string
@@ -26,7 +30,7 @@ export interface Workshop {
 
 /** 새 기계. 상수는 기계마다 달라서 미리 채우지 않는다 (비어 있으면 NaN) */
 export const newMachine = (): Machine => ({
-  id: Math.random().toString(36).slice(2, 10),
+  id: newId(),
   name: '',
   indexConstant: NaN,
   differentialConstant: NaN,
@@ -37,10 +41,3 @@ export const newMachine = (): Machine => ({
 
 /** 분할 상수가 있어야 변환기어를 계산할 수 있다 (차동 상수는 헬리컬일 때만 필요) */
 export const isMachineReady = (m: Machine | undefined): boolean => !!m && isPositive(m.indexConstant)
-
-/** 보유 변환기어와 등록된 기계 */
-export const useWorkshop = () =>
-  usePersistedState<Workshop>('workshop', () => ({
-    gears: [],
-    machines: [],
-  }))

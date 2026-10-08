@@ -1,10 +1,9 @@
 <script setup lang="ts">
-const workshop = useWorkshop()
+const workshop = useWorkshopStore()
 
 // 보유 변환기어는 따로 화면에서 관리하고 여기선 요약만
-const totalGears = computed(() => workshop.value.gears.reduce((n, g) => n + g.qty, 0))
 const gearPreview = computed(() => {
-  const list = workshop.value.gears.map(g => g.teeth)
+  const list = workshop.gears.map(g => g.teeth)
   return list.length > 12 ? `${list.slice(0, 12).join(', ')} …` : list.join(', ')
 })
 
@@ -21,7 +20,7 @@ const gearPreview = computed(() => {
       <span class="min-w-0 flex-1">
         <span class="flex items-baseline justify-between gap-2">
           <span class="text-lg font-bold">보유 변환기어</span>
-          <span class="shrink-0 text-sm text-muted tabular-nums">{{ workshop.gears.length }}종 · {{ totalGears }}개</span>
+          <span class="shrink-0 text-sm text-muted tabular-nums">{{ workshop.gears.length }}종 · {{ workshop.totalGears }}개</span>
         </span>
         <span class="mt-0.5 block truncate text-sm text-muted tabular-nums">{{ gearPreview || '등록된 변환기어가 없어요' }}</span>
       </span>

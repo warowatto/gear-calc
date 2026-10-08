@@ -3,8 +3,8 @@
 const props = defineProps<{ gear: GearRecord }>()
 const emit = defineEmits<{ delete: [] }>()
 
-const workshop = useWorkshop()
-const machine = computed(() => workshop.value.machines.find(m => m.id === props.gear.hob.machineId))
+const workshop = useWorkshopStore()
+const machine = computed(() => workshop.machineById(props.gear.hob.machineId))
 const span = computed(() => gearSpan(props.gear))
 const summary = computed(() => specSummary(props.gear.spec))
 </script>

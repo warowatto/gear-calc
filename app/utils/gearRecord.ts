@@ -1,5 +1,7 @@
-import { calcSpan, type SpanInput } from '~/utils/spanMeasurement'
-import type { GearCombo } from '~/utils/changeGears'
+// 기어 기록의 모양과 계산 도우미 (상태는 stores/gears.ts)
+import { calcSpan, type SpanInput } from './spanMeasurement'
+import type { GearCombo } from './changeGears'
+import { formatAngle, isNumber, isPositive } from './format'
 
 export const MM_PER_INCH = 25.4
 
@@ -61,10 +63,7 @@ export function specTitle(spec: GearSpecInput) {
   return `${size} · ${spec.teeth}T`
 }
 
-export const useGears = () =>
-  usePersistedState('gears', () => ({ list: [] as GearRecord[] }))
-
-const newId = () => Math.random().toString(36).slice(2, 10)
+export const newId = () => Math.random().toString(36).slice(2, 10)
 
 /** 새 기어 (기본 제원) */
 export function createGear(): GearRecord {
@@ -95,7 +94,3 @@ export function gearSpan(gear: GearRecord) {
     min: result.span + Math.min(upper, lower),
   }
 }
-
-/** 등록·수정 중인 기어. 앱을 잠깐 나갔다 와도 이어서 할 수 있게 저장해 둔다 */
-export const useGearDraft = (kind: 'new' | 'edit' = 'new') =>
-  usePersistedState(`draft-${kind}`, () => ({ gear: null as GearRecord | null }))

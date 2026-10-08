@@ -2,11 +2,11 @@
 // 기계 등록(/settings/machines/new)·수정. 저장을 눌러야 반영된다
 const route = useRoute()
 const router = useRouter()
-const workshop = useWorkshop()
-const gears = useGears()
+const workshop = useWorkshopStore()
+const gears = useGearsStore()
 
 const isNew = route.params.id === 'new'
-const original = isNew ? undefined : workshop.value.machines.find(m => m.id === route.params.id)
+const original = isNew ? undefined : workshop.machineById(String(route.params.id))
 const draft = reactive<Machine>(original ? { ...original } : newMachine())
 
 const nameValid = computed(() => draft.name.trim().length > 0)
@@ -24,11 +24,7 @@ const toast = useToast()
 function save() {
   if (!canSave.value) return
   const m: Machine = { ...draft, name: draft.name.trim() }
-  if (isNew) workshop.value.machines.push(m)
-  else {
-    const i = workshop.value.machines.findIndex(x => x.id === m.id)
-    if (i >= 0) workshop.value.machines[i] = m
-  }
+  workshop.saveMachine(m)
   toast.add({ title: isNew ? `'${m.name}'을(를) 등록했어요` : '저장했어요', color: 'success', duration: 2000 })
   goBack()
 }
@@ -51,9 +47,9 @@ function useSample() {
 
 // ── 삭제 ──
 const deleteOpen = ref(false)
-const usedBy = computed(() => gears.value.list.filter(g => g.hob.machineId === draft.id).length)
+const usedBy = computed(() => gears.list.filter(g => g.hob.machineId === draft.id).length)
 function remove() {
-  workshop.value.machines = workshop.value.machines.filter(m => m.id !== draft.id)
+  workshop.removeMachine(draft.id)
   deleteOpen.value = false
   goBack()
 }

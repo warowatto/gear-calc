@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { backupFileName, buildBackup, mergeBackup, parseBackup, type BackupData } from '~/utils/backup'
 
-const gears = useGears()
-const workshop = useWorkshop()
+const gears = useGearsStore()
+const workshop = useWorkshopStore()
 const toast = useToast()
 
-const current = (): BackupData => JSON.parse(JSON.stringify({ gears: gears.value.list, workshop: workshop.value }))
+const current = (): BackupData => JSON.parse(JSON.stringify({ gears: gears.list, workshop: { gears: workshop.gears, machines: workshop.machines } }))
 const summary = (d: BackupData) => `기어 기록 ${d.gears.length}개 · 기계 ${d.workshop.machines.length}대 · 변환기어 ${d.workshop.gears.length}종`
-const currentSummary = computed(() => summary({ gears: gears.value.list, workshop: workshop.value }))
+const currentSummary = computed(() => summary({ gears: gears.list, workshop: { gears: workshop.gears, machines: workshop.machines } }))
 
 // ── 내보내기 ──
 function backupBlob() {
@@ -64,8 +64,8 @@ async function onPick(e: Event) {
 }
 
 function apply(data: BackupData) {
-  gears.value.list = data.gears
-  workshop.value = data.workshop
+  gears.setAll(data.gears)
+  workshop.setAll(data.workshop)
   picked.value = null
 }
 

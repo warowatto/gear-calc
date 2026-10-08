@@ -1,32 +1,31 @@
 <script setup lang="ts">
-const gears = useGears()
-const workshop = useWorkshop()
+const gears = useGearsStore()
+const workshop = useWorkshopStore()
+const drafts = useDraftsStore()
 
 // 처음 쓰는 사람: 기계 → 보유 변환기어 → 첫 기어 순서로 안내
 const setupSteps = computed(() => [
   {
     title: '기계 등록',
     desc: '분할·차동 상수를 넣어요',
-    done: workshop.value.machines.some(isMachineReady),
-    doneText: `${workshop.value.machines.filter(isMachineReady).length}대`,
+    done: workshop.readyMachines.length > 0,
+    doneText: `${workshop.readyMachines.length}대`,
     to: '/settings/machines/new',
   },
   {
     title: '보유 변환기어 등록',
     desc: '가진 변환기어 잇수를 넣어요',
-    done: workshop.value.gears.length > 0,
-    doneText: `${workshop.value.gears.length}종`,
+    done: workshop.gears.length > 0,
+    doneText: `${workshop.gears.length}종`,
     to: '/settings/gears',
   },
 ])
 const setupDone = computed(() => setupSteps.value.every(s => s.done))
-const draft = useGearDraft()
 const query = ref('')
 
 const items = computed(() => {
   const q = query.value.trim().toLowerCase()
-  return [...gears.value.list]
-    .sort((a, b) => b.updatedAt - a.updatedAt)
+  return gears.recent
     .filter(g => !q || [g.name, g.memo, specSummary(g.spec)].some(t => t.toLowerCase().includes(q)))
 })
 
@@ -37,20 +36,11 @@ const deleteOpen = computed({
   set: (v) => { if (!v) deleting.value = null },
 })
 function removeGear() {
-  const id = deleting.value?.id
-  gears.value.list = gears.value.list.filter(g => g.id !== id)
+  if (deleting.value) gears.remove(deleting.value.id)
 }
 
 function addGear() {
-  // 가장 최근 기어의 기계·호브·뺀 변환기어는 이어받는다
-  const latest = [...gears.value.list].sort((a, b) => b.updatedAt - a.updatedAt)[0]
-  const gear = createGear()
-  if (latest) {
-    gear.hob.machineId = latest.hob.machineId
-    gear.hob.starts = latest.hob.starts
-    gear.hob.excluded = [...latest.hob.excluded]
-  }
-  draft.value.gear = gear
+  drafts.startNew(gears.recent[0])
   navigateTo('/gears/new')
 }
 </script>

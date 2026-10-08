@@ -1,6 +1,6 @@
 // 백업 파일 만들기·읽기·합치기 (기어 기록 + 기계 + 보유 변환기어)
-import type { GearRecord } from '~/composables/useGears'
-import type { Machine, OwnedGear, Workshop } from '~/composables/useWorkshop'
+import type { GearRecord } from './gearRecord'
+import type { Machine, OwnedGear, Workshop } from './workshop'
 
 export const BACKUP_APP = 'gear-calc'
 export const BACKUP_VERSION = 1

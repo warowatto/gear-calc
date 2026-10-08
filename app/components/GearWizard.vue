@@ -70,9 +70,9 @@ watch(showTolerance, (on) => {
 
 // ── 기계 ──
 // 분할 상수까지 넣은 기계만 고를 수 있다
-const hasMachines = computed(() => workshop.value.machines.some(isMachineReady))
+const hasMachines = computed(() => workshop.readyMachines.length > 0)
 if (!isMachineReady(machine.value)) {
-  const first = workshop.value.machines.find(isMachineReady)
+  const first = workshop.readyMachines[0]
   if (first) gear.value.hob.machineId = first.id
 }
 const gearsOpen = ref(false)

@@ -13,18 +13,18 @@ import {
 
 /** 기어 한 개에 대한 분할·차동 변환기어 탐색 */
 export function useChangeGearSearch(gear: Ref<GearRecord>) {
-  const workshop = useWorkshop()
+  const workshop = useWorkshopStore()
   const spec = computed(() => toCalcSpec(gear.value.spec))
   const hob = computed(() => gear.value.hob)
 
-  const machine = computed(() => workshop.value.machines.find(m => m.id === hob.value.machineId))
+  const machine = computed(() => workshop.machineById(hob.value.machineId))
   const helical = computed(() => spec.value.helixAngle > 0)
 
   // ── 이번 작업에 쓸 변환기어 (보유 목록 − 뺀 것). 같은 잇수가 여러 개면 일부만 뺄 수 있다 ──
   /** 이 잇수를 이번에 몇 개 쓸 수 있는지 */
   const usableOf = (g: OwnedGear) => usableCount(g.teeth, g.qty, hob.value.excluded)
-  const usableGears = computed(() => usableGearList(workshop.value.gears, hob.value.excluded))
-  const usableKinds = computed(() => workshop.value.gears.filter(g => usableOf(g) > 0).length)
+  const usableGears = computed(() => usableGearList(workshop.gears, hob.value.excluded))
+  const usableKinds = computed(() => workshop.gears.filter(g => usableOf(g) > 0).length)
 
   /** 누를 때마다 하나씩 빼고(2 → 1 → 0), 다 빠져 있으면 모두 되돌린다 */
   function toggleGear(g: OwnedGear) {
